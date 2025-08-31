@@ -24,9 +24,7 @@ jobs:
       CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
       CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
       PIPELINE_ID: ${{ secrets.PIPELINE_ID }}
-      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
+      
     steps:
       - name: Checkout
         uses: actions/checkout@v4
