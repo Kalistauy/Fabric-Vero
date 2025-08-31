@@ -53,15 +53,15 @@ jobs:
       - name: Get AAD token (client_credentials)
         id: token
         run: |
-    run: |
-      TOKEN=$(curl -s -X POST \
-        -H 'Content-Type: application/x-www-form-urlencoded' \
-        -d 'client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https://analysis.windows.net/powerbi/api/.default&grant_type=client_credentials' \
-        https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token | jq -r .access_token)
-      if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-        echo "Failed to acquire token"; exit 1
-      fi
-      echo "token=$TOKEN" >> $GITHUB_OUTPUT
+          TOKEN=$(curl -s -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https%3A%2F%2Fanalysis.windows.net%2Fpowerbi%2Fapi%2F.default&grant_type=client_credentials" \
+            "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token" | jq -r .access_token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to acquire token"; exit 1
+          fi
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
       - name: Deploy (DeployAll or Selective)
         id: deploy
         run: |
@@ -227,5 +227,4 @@ jobs:
         if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         run: |
           curl -H 'Content-type: application/json' --data "{\"text\":\"❌ Fabric Deploy FAILED → Lane: *${{ github.event.inputs.lane || 'dev_to_test' }}*  | Repo: *${{ github.repository }}*  | Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" "$SLACK_WEBHOOK_URL"
-
 
