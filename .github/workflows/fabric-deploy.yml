@@ -1,0 +1,36 @@
+name: Power BI API Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-powerbi:
+    runs-on: ubuntu-latest
+    env:
+      TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
+      CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
+    steps:
+      - name: Get Azure AD Token
+        id: token
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https://analysis.windows.net/powerbi/api/.default&grant_type=client_credentials" \
+            "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token")
+          echo "Raw response: $RESPONSE"
+          TOKEN=$(echo "$RESPONSE" | jq -r .access_token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "❌ Failed to acquire token"
+            exit 1
+          fi
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: List Power BI Workspaces
+        run: |
+          TOKEN="${{ steps.token.outputs.token }}"
+          RESPONSE=$(curl -s -X GET \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://api.powerbi.com/v1.0/myorg/groups")
+          echo "Workspaces response:"
+          echo "$RESPONSE"
