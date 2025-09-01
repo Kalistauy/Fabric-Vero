@@ -50,18 +50,10 @@ jobs:
             echo "dataset_ids=${{ secrets.DATASET_IDS_PROD }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get AAD token (client_credentials)
-        id: token
-        run: |
-  run: |
-    TOKEN=$(curl -s -X POST "
-      -H 'Content-Type: application/x-www-form-urlencoded' "
-      -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https://analysis.windows.net/powerbi/api/.default&grant_type=client_credentials" "
-      https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token | jq -r .access_token)
-    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-      echo "Failed to acquire token"; exit 1
-    fi
-    echo "token=$TOKEN" >> $GITHUB_OUTPUT
+      - 
+Invalid workflow file: .github/workflows/fabric-deploy.yml#L58
+You have an error in your yaml syntax on line 58
+
       - name: Deploy (DeployAll or Selective)
         id: deploy
         run: |
