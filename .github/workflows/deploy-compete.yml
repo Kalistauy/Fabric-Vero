@@ -54,9 +54,9 @@ jobs:
         id: token
         run: |
           TOKEN=$(curl -s -X POST \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https%3A%2F%2Fanalysis.windows.net%2Fpowerbi%2Fapi%2F.default&grant_type=client_credentials" \
-            "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token" | jq -r .access_token)
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https://analysis.windows.net/powerbi/api/.default&grant_type=client_credentials' \
+  https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token | jq -r .access_token)
           if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
             echo "Failed to acquire token"; exit 1
           fi
