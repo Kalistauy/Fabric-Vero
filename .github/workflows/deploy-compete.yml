@@ -110,13 +110,6 @@ jobs:
             exit 1
           fi
           echo "op_id=$OP_ID" >> $GITHUB_OUTPUT
-      - name: Debug Deploy Variables
-        run: |
-          echo 'SRC=${{ steps.lane.outputs.source_stage_order }}'
-          echo 'TOKEN=${{ steps.token.outputs.token }}'
-          echo 'SELECTIVE=${{ github.event.inputs.selective_artifacts }}'
-          echo 'PIPELINE_ID=${{ env.PIPELINE_ID }}'
-
 
       - name: Wait for deployment operation
         id: wait_deploy
