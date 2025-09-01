@@ -44,7 +44,7 @@ jobs:
       TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
       CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
       CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
-      PIPELINE_ID: 1e9ba698-53af-40e6-ace2-4885a126e3d7
+    PIPELINE_ID: e4fdc84a-b2c0-446a-943a-bc4ce7d9d8c7
     steps:
       - name: Get Azure AD Token for Fabric
         id: token
