@@ -1,36 +1,230 @@
-name: Power BI API Test
+name: Fabric - Deploy & Validate
 
 on:
+  push:
+    branches: [ main ]             # Despliega automáticamente al merge en main (ajústalo si quieres)
   workflow_dispatch:
+    inputs:
+      lane:
+        description: "Pipeline lane to deploy"
+        required: true
+        default: "dev_to_test"
+        type: choice
+        options: [ "dev_to_test", "test_to_prod" ]
+      selective_artifacts:
+        description: "Optional: comma-separated artifact IDs to selective-deploy (datasets/reports/dashboards). Leave empty for DeployAll."
+        required: false
+        default: ""
 
 jobs:
-  call-powerbi:
+  deploy:
     runs-on: ubuntu-latest
     env:
       TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
       CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
       CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
+      PIPELINE_ID: ${{ secrets.PIPELINE_ID }}
+      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
     steps:
-      - name: Get Azure AD Token
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine lane/stage order
+        id: lane
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            LANE="${{ github.event.inputs.lane }}"
+          else
+            # Por defecto, al push en main: Dev -> Test
+            LANE="dev_to_test"
+          fi
+          if [ "$LANE" = "dev_to_test" ]; then
+            echo "source_stage_order=0" >> $GITHUB_OUTPUT
+            echo "target_env=TEST" >> $GITHUB_OUTPUT
+            echo "dataset_ids=${{ secrets.DATASET_IDS_TEST }}" >> $GITHUB_OUTPUT
+          else
+            echo "source_stage_order=1" >> $GITHUB_OUTPUT
+            echo "target_env=PROD" >> $GITHUB_OUTPUT
+            echo "dataset_ids=${{ secrets.DATASET_IDS_PROD }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get AAD token (client_credentials)
         id: token
         run: |
-          RESPONSE=$(curl -s -X POST \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https://analysis.windows.net/powerbi/api/.default&grant_type=client_credentials" \
-            "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token")
-          echo "Raw response: $RESPONSE"
-          TOKEN=$(echo "$RESPONSE" | jq -r .access_token)
+          TOKEN=$(curl -s -X POST \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https://analysis.windows.net/powerbi/api/.default&grant_type=client_credentials' \
+  https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token | jq -r .access_token)
           if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            echo "❌ Failed to acquire token"
-            exit 1
+            echo "Failed to acquire token"; exit 1
           fi
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
-      - name: List Power BI Workspaces
+      - name: Deploy (DeployAll or Selective)
+        id: deploy
+        run: |
+          SRC=${{ steps.lane.outputs.source_stage_order }}
+          TOKEN="${{ steps.token.outputs.token }}"
+          SELECTIVE="${{ github.event.inputs.selective_artifacts }}"
+
+          if [ -n "$SELECTIVE" ]; then
+            echo "Using SelectiveDeploy with artifact IDs: $SELECTIVE"
+            # Construimos payload simple: solo datasets/reports/dashboards. Extiéndelo según tus tipos.
+            # Espera IDs fuente (artifactId) en el stage origen. Puedes obtenerlos con Get Pipeline Stage Artifacts.
+            IFS=',' read -ra IDS <<< "$SELECTIVE"
+            DS_JSON=""
+            for AID in "${IDS[@]}"; do
+              # Por simplicidad los tratamos como datasets; ajusta a 'reports' o 'dashboards' si corresponde
+              DS_JSON="$DS_JSON,{\"sourceId\":\"$AID\"}"
+            done
+            DS_JSON="[${DS_JSON#,}]"
+            BODY=$(cat <<EOF
+            {
+              "sourceStageOrder": $SRC,
+              "datasets": $DS_JSON,
+              "options": { "allowCreateArtifact": true, "allowOverwriteArtifact": true }
+            }
+            EOF
+            )
+            RESP=$(curl -s -X POST \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$BODY" \
+              "https://api.powerbi.com/v1.0/myorg/pipelines/${PIPELINE_ID}/Deploy")
+          else
+            echo "Using DeployAll"
+            BODY="{\"sourceStageOrder\": $SRC, \"options\": {\"allowCreateArtifact\": true, \"allowOverwriteArtifact\": true}}"
+            RESP=$(curl -s -X POST \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$BODY" \
+              "https://api.powerbi.com/v1.0/myorg/pipelines/${PIPELINE_ID}/DeployAll")
+          fi
+
+          echo "Response: $RESP"
+          OP_ID=$(echo "$RESP" | jq -r '.id // empty')
+          if [ -z "$OP_ID" ]; then
+            echo "No operation ID returned. Failing."
+            exit 1
+          fi
+          echo "op_id=$OP_ID" >> $GITHUB_OUTPUT
+
+      - name: Wait for deployment operation
+        id: wait_deploy
         run: |
           TOKEN="${{ steps.token.outputs.token }}"
-          RESPONSE=$(curl -s -X GET \
+          OP="${{ steps.deploy.outputs.op_id }}"
+          PIPE="${{ env.PIPELINE_ID }}"
+          ATTEMPTS=0
+          MAX=60     # ~10 min si sleep=10
+          SLEEP=10
+
+          while true; do
+            STATUS_JSON=$(curl -s -X GET \
+              -H "Authorization: Bearer $TOKEN" \
+              "https://api.powerbi.com/v1.0/myorg/pipelines/${PIPELINE_ID}/operations/${OP}")
+            STATE=$(echo "$STATUS_JSON" | jq -r '.status')
+            echo "Operation status: $STATE"
+            if [ "$STATE" = "Succeeded" ]; then
+              break
+            elif [ "$STATE" = "Failed" -o "$STATE" = "Cancelled" ]; then
+              echo "Deployment $STATE"
+              echo "Full: $STATUS_JSON"
+              exit 1
+            fi
+            ATTEMPTS=$((ATTEMPTS+1))
+            if [ $ATTEMPTS -ge $MAX ]; then
+              echo "Timeout waiting for deployment."
+              exit 1
+            fi
+            sleep $SLEEP
+          done
+
+      - name: Trigger dataset refresh (target env)
+        id: refresh
+        run: |
+          TOKEN="${{ steps.token.outputs.token }}"
+          IDS="${{ steps.lane.outputs.dataset_ids }}"
+          if [ -z "$IDS" ]; then
+            echo "No dataset IDs provided for target env; skipping refresh."
+            exit 0
+          fi
+          IFS=',' read -ra ARR <<< "$IDS"
+          for DID in "${ARR[@]}"; do
+            echo "Triggering refresh for dataset: $DID"
+            curl -s -X POST \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"notifyOption":"MailOnFailure"}' \
+              "https://api.powerbi.com/v1.0/myorg/datasets/${DID}/refreshes" | jq -r .
+          done
+
+      - name: Wait for refresh completion
+        id: wait_refresh
+        run: |
+          TOKEN="${{ steps.token.outputs.token }}"
+          IDS="${{ steps.lane.outputs.dataset_ids }}"
+          if [ -z "$IDS" ]; then
+            echo "Skipping wait; no datasets."; exit 0
+          fi
+          IFS=',' read -ra ARR <<< "$IDS"
+          for DID in "${ARR[@]}"; do
+            echo "Polling refresh status for dataset: $DID"
+            ATTEMPTS=0; MAX=120; SLEEP=10
+            while true; do
+              # Get the most recent refresh entry
+              RJSON=$(curl -s -X GET -H "Authorization: Bearer $TOKEN" \
+                "https://api.powerbi.com/v1.0/myorg/datasets/${DID}/refreshes?$top=1")
+              STATUS=$(echo "$RJSON" | jq -r '.value[0].status // empty')
+              echo "Status: $STATUS"
+              if [ "$STATUS" = "Completed" ]; then
+                break
+              elif [ "$STATUS" = "Failed" -o "$STATUS" = "Disabled" ]; then
+                echo "Refresh $STATUS for dataset $DID"
+                echo "Detail: $RJSON"
+                exit 1
+              fi
+              ATTEMPTS=$((ATTEMPTS+1))
+              if [ $ATTEMPTS -ge $MAX ]; then
+                echo "Timeout waiting for refresh for dataset $DID"
+                exit 1
+              fi
+              sleep $SLEEP
+            done
+          done
+
+      - name: Optional quick data check (Execute Queries)
+        if: ${{ steps.lane.outputs.dataset_ids != '' }}
+        run: |
+          TOKEN="${{ steps.token.outputs.token }}"
+          # Si quieres un sanity check con DAX, cambia el DID por un dataset clave
+          DID=$(echo "${{ steps.lane.outputs.dataset_ids }}" | cut -d',' -f1)
+          BODY='{"queries":[{"query":"EVALUATE ROW(\"HealthCheck\", NOW())"}]}'
+          curl -s -X POST \
             -H "Authorization: Bearer $TOKEN" \
-            "https://api.powerbi.com/v1.0/myorg/groups")
-          echo "Workspaces response:"
-          echo "$RESPONSE"
+            -H "Content-Type: application/json" \
+            -d "$BODY" \
+            "https://api.powerbi.com/v1.0/myorg/datasets/${DID}/executeQueries" | jq -r .
+
+      - name: Notify success (Teams)
+        if: ${{ success() && env.TEAMS_WEBHOOK_URL != '' }}
+        run: |
+          curl -H 'Content-Type: application/json' -d "{\"text\":\"✅ *Fabric Deploy OK* → Lane: *${{ github.event.inputs.lane || 'dev_to_test' }}*  | Repo: *${{ github.repository }}*  | Commit: *${{ github.sha }}*\"}" "$TEAMS_WEBHOOK_URL"
+
+      - name: Notify success (Slack)
+        if: ${{ success() && env.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -H 'Content-type: application/json' --data "{\"text\":\"✅ Fabric Deploy OK → Lane: *${{ github.event.inputs.lane || 'dev_to_test' }}*  | Repo: *${{ github.repository }}*  | Commit: *${{ github.sha }}*\"}" "$SLACK_WEBHOOK_URL"
+
+      - name: Notify failure (Teams)
+        if: ${{ failure() && env.TEAMS_WEBHOOK_URL != '' }}
+        run: |
+          curl -H 'Content-Type: application/json' -d "{\"text\":\"❌ *Fabric Deploy FAILED* → Lane: *${{ github.event.inputs.lane || 'dev_to_test' }}*  | Repo: *${{ github.repository }}*  | Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" "$TEAMS_WEBHOOK_URL"
+
+      - name: Notify failure (Slack)
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -H 'Content-type: application/json' --data "{\"text\":\"❌ Fabric Deploy FAILED → Lane: *${{ github.event.inputs.lane || 'dev_to_test' }}*  | Repo: *${{ github.repository }}*  | Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" "$SLACK_WEBHOOK_URL"
+
