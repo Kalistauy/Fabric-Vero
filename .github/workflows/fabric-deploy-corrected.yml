@@ -1,12 +1,27 @@
-
-ame: Test Manual Trigger
+name: Azure Token Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
+  get-token:
     runs-on: ubuntu-latest
+    env:
+      TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
+      CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
     steps:
-      - name: Say Hello
-        run: echo "✅ Workflow ejecutado correctamente"
+      - name: Get Azure AD Token
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https://analysis.windows.net/powerbi/api/.default&grant_type=client_credentials" \
+            "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token")
+          echo "Raw response: $RESPONSE"
+          TOKEN=$(echo "$RESPONSE" | jq -r .access_token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "❌ Failed to acquire token"
+            exit 1
+          fi
+          echo "✅ Token acquired successfully"
+
