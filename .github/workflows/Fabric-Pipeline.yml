@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  trigger-fabric-pipeline:
+  deploy-to-dev:
     runs-on: ubuntu-latest
     env:
       TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
@@ -27,7 +27,41 @@ jobs:
           fi
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Trigger Fabric Pipeline
+      - name: Trigger Fabric Pipeline to deploy to [dev]
+        run: |
+          TOKEN="${{ steps.token.outputs.token }}"
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.fabric.microsoft.com/v1/pipelines/$PIPELINE_ID/run")
+          echo "Pipeline trigger response:"
+          echo "$RESPONSE"
+
+  deploy-to-tst:
+    needs: deploy-to-dev
+    runs-on: ubuntu-latest
+    env:
+      TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
+      CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
+      PIPELINE_ID: 1e9ba698-53af-40e6-ace2-4885a126e3d7
+    steps:
+      - name: Get Azure AD Token for Fabric
+        id: token
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https://api.fabric.microsoft.com/.default&grant_type=client_credentials" \
+            "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token")
+          echo "Raw response: $RESPONSE"
+          TOKEN=$(echo "$RESPONSE" | jq -r .access_token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "❌ Failed to acquire token"
+            exit 1
+          fi
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Trigger Fabric Pipeline to deploy to [tst]
         run: |
           TOKEN="${{ steps.token.outputs.token }}"
           RESPONSE=$(curl -s -X POST \
