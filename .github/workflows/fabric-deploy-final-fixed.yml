@@ -1,10 +1,24 @@
-- name: Ejecutar pipeline en workspace [dev]
+name: Fabric Deployment Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-to-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Login en Azure
         run: |
           az login --service-principal \
             -u ${{ secrets.AZURE_CLIENT_ID }} \
             -p ${{ secrets.AZURE_CLIENT_SECRET }} \
             --tenant ${{ secrets.AZURE_TENANT_ID }}
 
+      - name: Ejecutar pipeline en workspace [dev]
+        run: |
           access_token=$(az account get-access-token --resource https://api.fabric.microsoft.com --query accessToken -o tsv)
 
           curl -X POST https://api.fabric.microsoft.com/v1/pipelines/1e9ba698-53af-40e6-ace2-4885a126e3d7/run \
