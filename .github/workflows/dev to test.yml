@@ -1,11 +1,20 @@
-- name: Get Workspaces
+- name: Get Azure AD token
+  id: get_token
   env:
-    FABRIC_TOKEN: ${{ secrets.FABRIC_TOKEN }}
+    TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
+    CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
+    CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
   run: |
-    WORKSPACE_RESPONSE=$(curl -s -X GET \
-      "https://api.fabric.microsoft.com/v1/workspaces" \
-      -H "Authorization: Bearer $FABRIC_TOKEN" \
-      -H "Content-Type: application/json")
+    TOKEN_RESPONSE=$(curl -s -X POST "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token" \
+      -H "Content-Type: application/x-www-form-urlencoded" \
+      -d "grant_type=client_credentials&client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https%3A%2F%2Fapi.fabric.microsoft.com%2F.default")
 
-    echo "Workspace API response:"
-    echo "$WORKSPACE_RESPONSE" | jq .
+    ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .access_token)
+
+    if [ "$ACCESS_TOKEN" == "null" ]; then
+      echo "Error al obtener el token"
+      echo "$TOKEN_RESPONSE"
+      exit 1
+    fi
+
+    echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
