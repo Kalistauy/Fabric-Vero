@@ -33,6 +33,6 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             --data '{}' \
-            "https://api.fabric.microsoft.com/v1/pipelines/1e9ba698-53af-40e6-ace2-4885a126e3d7/deploy?sourceStage=Development&targetStage=Test")
+            "https://api.fabric.microsoft.com/v1/pipelines/65b0ce32-32d0-4180-9cff-39039acfc19c/deploy?sourceStage=Development&targetStage=Test")
           echo "Deployment response:"
           echo "$RESPONSE"
