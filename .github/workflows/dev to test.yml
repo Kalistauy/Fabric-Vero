@@ -1,20 +1,45 @@
-- name: Get Azure AD token
-  id: get_token
-  env:
-    TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
-    CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
-    CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
-  run: |
-    TOKEN_RESPONSE=$(curl -s -X POST "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token" \
-      -H "Content-Type: application/x-www-form-urlencoded" \
-      -d "grant_type=client_credentials&client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https%3A%2F%2Fapi.fabric.microsoft.com%2F.default")
+name: Fabric Deployment Workflow
 
-    ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .access_token)
+on:
+  workflow_dispatch:  # Permite ejecutar el workflow manualmente desde GitHub
 
-    if [ "$ACCESS_TOKEN" == "null" ]; then
-      echo "Error al obtener el token"
-      echo "$TOKEN_RESPONSE"
-      exit 1
-    fi
+jobs:
+  deploy-to-test:
+    runs-on: ubuntu-latest
 
-    echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Get Azure AD token
+      id: get_token
+      env:
+        TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
+        CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
+        CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
+      run: |
+        TOKEN_RESPONSE=$(curl -s -X POST "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "grant_type=client_credentials&client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&scope=https%3A%2F%2Fapi.fabric.microsoft.com%2F.default")
+
+        ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .access_token)
+
+        if [ "$ACCESS_TOKEN" == "null" ]; then
+          echo "Error al obtener el token"
+          echo "$TOKEN_RESPONSE"
+          exit 1
+        fi
+
+        echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
+
+    - name: Deploy to Test Workspace
+      if: success()
+      run: |
+        echo "Desplegando desde Dev a Test..."
+        curl -X POST "https://api.fabric.microsoft.com/v1/pipelines/github-integration-pipelines/deploy" \
+          -H "Authorization: Bearer $ACCESS_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{
+                "sourceWorkspaceId": "WS-github-integration-dev",
+                "targetWorkspaceId": "ws-github... (Test)"
+              }'
