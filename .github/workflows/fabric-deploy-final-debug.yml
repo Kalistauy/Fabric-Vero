@@ -1,2 +1,0 @@
-GET https://api.fabric.microsoft.com/v1/deploymentPipelines
-Authorization: Bearer <ACCESS_TOKEN>
