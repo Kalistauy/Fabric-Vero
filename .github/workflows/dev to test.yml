@@ -1,9 +1,9 @@
-- name: Trigger Fabric Pipeline Deployment (dev → test)
+- name: Trigger Fabric Deployment (dev → test)
   run: |
-    TOKEN="${{ steps.token.outputs.token }}"
+    TOKEN="${{ steps.get_token.outputs.token }}"
     RESPONSE=$(curl -s -X POST \
       -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" \
       "https://api.fabric.microsoft.com/v1/pipelines/1e9ba698-53af-40e6-ace2-4885a126e3d7/deploy?sourceStage=dev&targetStage=test")
-    echo "Pipeline trigger response:"
+    echo "Deployment response:"
     echo "$RESPONSE"
