@@ -1,32 +1,9 @@
-name: Deploy Lakehouse to Test
-
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'fabric/dev/lakehouses/**'  # Detecta cambios en cualquier archivo dentro del Lakehouse
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        lakehouse:
-          - name: lakehouse1
-          - name: lakehouse2
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Detect Lakehouse changes
-        id: changes
-        run: |
-          echo "Detectando cambios en Lakehouse..."
-          # Aquí podrías agregar lógica para comparar nombres o metadatos si los tenés versionados
-
-      - name: Deploy to Test
-        if: steps.changes.outputs.modified == 'true'
-        run: |
-          echo "Desplegando Lakehouse ${{ matrix.lakehouse.name }} a Test..."
-          # Aquí iría tu comando de despliegue, por ejemplo usando Fabric CLI o API
+- name: Trigger Fabric Pipeline Deployment (dev → test)
+  run: |
+    TOKEN="${{ steps.token.outputs.token }}"
+    RESPONSE=$(curl -s -X POST \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      "https://api.fabric.microsoft.com/v1/pipelines/1e9ba698-53af-40e6-ace2-4885a126e3d7/deploy?sourceStage=dev&targetStage=test")
+    echo "Pipeline trigger response:"
+    echo "$RESPONSE"
