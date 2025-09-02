@@ -1,0 +1,27 @@
+name: Deploy to Fabric Test
+
+on:
+  workflow_dispatch:  # Permite ejecución manual desde GitHub
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Deploy from Dev to Test in Fabric
+        run: |
+          curl -X POST https://api.fabric.microsoft.com/deployment/deploy \
+            -H "Authorization: Bearer ${{ secrets.FABRIC_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "pipelineId": "${{ secrets.FABRIC_PIPELINE_ID }}",
+              "sourceStage": "dev",
+              "targetStage": "test",
+              "artifacts": [
+                { "name": "LakehouseA", "type": "Lakehouse" },
+                { "name": "NotebookB", "type": "Notebook" }
+              ]
+            }'
+
