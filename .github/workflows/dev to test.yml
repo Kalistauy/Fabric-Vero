@@ -6,17 +6,20 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Deploy from Dev to Test in Fabric
+      - name: Deploy artifacts from Dev to Test
+        env:
+          FABRIC_API_TOKEN: ${{ secrets.FABRIC_API_TOKEN }}
+          PIPELINE_ID: ${{ secrets.FABRIC_PIPELINE_ID }}
         run: |
-          curl -X POST https://api.fabric.microsoft.com/deployment/deploy \
-            -H "Authorization: Bearer ${{ secrets.FABRIC_API_TOKEN }}" \
+          curl -X POST https://api.fabric.microsoft.com/deployment/pipelines/${PIPELINE_ID}/promote \
+            -H "Authorization: Bearer $FABRIC_API_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "pipelineId": "${{ secrets.FABRIC_PIPELINE_ID }}",
               "sourceStage": "dev",
               "targetStage": "test",
               "artifacts": [
@@ -24,4 +27,3 @@ jobs:
                 { "name": "NotebookB", "type": "Notebook" }
               ]
             }'
-
