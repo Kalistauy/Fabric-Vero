@@ -1,4 +1,4 @@
-name: Minimal Fabric Deploy
+name: Promote Dev to Test in Fabric
 
 on:
   workflow_dispatch:
@@ -32,6 +32,7 @@ jobs:
           RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
+            --data '{}' \
             "https://api.fabric.microsoft.com/v1/pipelines/1e9ba698-53af-40e6-ace2-4885a126e3d7/deploy?sourceStage=dev&targetStage=test")
           echo "Deployment response:"
           echo "$RESPONSE"
