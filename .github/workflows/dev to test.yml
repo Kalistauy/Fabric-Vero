@@ -1,13 +1,11 @@
-- name: Deploy to Test Workspace
-  if: success()  # Solo se ejecuta si los pasos anteriores fueron exitosos
+- name: Get Workspaces
   env:
     FABRIC_TOKEN: ${{ secrets.FABRIC_TOKEN }}
   run: |
-    echo "Desplegando desde Dev a Test..."
-    curl -X POST "https://api.fabric.microsoft.com/pipelines/github-integration-pipelines/deploy" \
+    WORKSPACE_RESPONSE=$(curl -s -X GET \
+      "https://api.fabric.microsoft.com/v1/workspaces" \
       -H "Authorization: Bearer $FABRIC_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{
-            "sourceWorkspaceId": "WS-github-integration-dev",
-            "targetWorkspaceId": "ws-github... (Test)"
-          }'
+      -H "Content-Type: application/json")
+
+    echo "Workspace API response:"
+    echo "$WORKSPACE_RESPONSE" | jq .
