@@ -1,123 +1,94 @@
+
 name: Microsoft Fabric CI/CD
-true:
+
+on:
   push:
-    branches:
-    - main
+    branches: [main]
   pull_request:
-    branches:
-    - main
-  workflow_dispatch: null
+    branches: [main]
+  workflow_dispatch:
+
 env:
-  FABRIC_API_URL: https://api.fabric.microsoft.com/v1
-  AZURE_LOGIN_URL: https://login.microsoftonline.com
+  FABRIC_API_URL: "https://api.fabric.microsoft.com/v1"
+  AZURE_LOGIN_URL: "https://login.microsoftonline.com"
+  WORKSPACE_NAME: "WS-github-integration-dev"
+  PIPELINE_NAME: "github-integration-pipelines"
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Get Azure AD Token
-      id: get_token
-      run: "# Get access token using service principal\nTOKEN_RESPONSE=$(curl -s -X\
-        \ POST \\\n  \"${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token\"\
-        \ \\\n  -H \"Content-Type: application/x-www-form-urlencoded\" \\\n  -d \"\
-        client_id=${{ secrets.CLIENT_ID }}\" \\\n  -d \"client_secret=${{ secrets.CLIENT_SECRET\
-        \ }}\" \\\n  -d \"scope=https://api.fabric.microsoft.com/.default\" \\\n \
-        \ -d \"grant_type=client_credentials\")\n\nACCESS_TOKEN=$(echo \"$TOKEN_RESPONSE\"\
-        \ | jq -r '.access_token')\necho \"::add-mask::$ACCESS_TOKEN\"\necho \"access_token=$ACCESS_TOKEN\"\
-        \ >> $GITHUB_OUTPUT\n"
-    - name: Get Workspace ID
-      id: get_workspace
-      run: "# Get workspace by name\nWORKSPACE_RESPONSE=$(curl -s -X GET \\\n  \"\
-        ${{ env.FABRIC_API_URL }}/workspaces\" \\\n  -H \"Authorization: Bearer ${{\
-        \ steps.get_token.outputs.access_token }}\" \\\n  -H \"Content-Type: application/json\"\
-        )\n\nWORKSPACE_ID=$(echo \"$WORKSPACE_RESPONSE\" | jq -r --arg name \"${{\
-        \ vars.WORKSPACE_NAME }}\" '.value[] | select(.displayName == $name) | .id')\n\
-        echo \"workspace_id=$WORKSPACE_ID\" >> $GITHUB_OUTPUT\necho \"Found workspace:\
-        \ $WORKSPACE_ID\"\n"
-    - name: Debug Workspace Response
-      run: 'echo "Workspace API response:"
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        echo "$WORKSPACE_RESPONSE"'
-    - name: Connect to Git (if not already connected)
-      run: "# Check if workspace is already connected to Git\nGIT_STATUS=$(curl -s\
-        \ -X GET \\\n  \"${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id\
-        \ }}/git/status\" \\\n  -H \"Authorization: Bearer ${{ steps.get_token.outputs.access_token\
-        \ }}\" \\\n  -H \"Content-Type: application/json\")\n\nIS_CONNECTED=$(echo\
-        \ \"$GIT_STATUS\" | jq -r '.isGitSyncEnabled // false')\n\nif [ \"$IS_CONNECTED\"\
-        \ != \"true\" ]; then\n  echo \"Connecting workspace to Git...\"\n  \n  CONNECT_PAYLOAD=$(cat\
-        \ <<EOF\n{\n  \"gitProviderDetails\": {\n    \"gitProviderType\": \"GitHub\"\
-        ,\n    \"ownerName\": \"${{ github.repository_owner }}\",\n    \"repositoryName\"\
-        : \"${{ github.event.repository.name }}\",\n    \"branchName\": \"${{ github.ref_name\
-        \ }}\",\n    \"directoryName\": \"fabric-items\"\n  }\n}\nEOF\n)\n  \n  curl\
-        \ -s -X POST \\\n    \"${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id\
-        \ }}/git/connect\" \\\n    -H \"Authorization: Bearer ${{ steps.get_token.outputs.access_token\
-        \ }}\" \\\n    -H \"Content-Type: application/json\" \\\n    -d \"$CONNECT_PAYLOAD\"\
-        \n  \n  echo \"Workspace connected to Git\"\nelse\n  echo \"Workspace already\
-        \ connected to Git\"\nfi\n"
-    - name: Update from Git
-      run: "# Sync workspace with latest Git changes\necho \"Updating workspace from\
-        \ Git...\"\n\nUPDATE_RESPONSE=$(curl -s -X POST \\\n  \"${{ env.FABRIC_API_URL\
-        \ }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/updateFromGit\"\
-        \ \\\n  -H \"Authorization: Bearer ${{ steps.get_token.outputs.access_token\
-        \ }}\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"allowOverrideItems\"\
-        : true}')\n\necho \"Update initiated\"\necho \"$UPDATE_RESPONSE\"\n"
-    - name: Get Deployment Pipeline ID
-      id: get_pipeline
-      run: "# Get deployment pipelines\nPIPELINES_RESPONSE=$(curl -s -X GET \\\n \
-        \ \"${{ env.FABRIC_API_URL }}/deploymentPipelines\" \\\n  -H \"Authorization:\
-        \ Bearer ${{ steps.get_token.outputs.access_token }}\" \\\n  -H \"Content-Type:\
-        \ application/json\")\n\nPIPELINE_ID=$(echo \"$PIPELINES_RESPONSE\" | jq -r\
-        \ --arg name \"${{ vars.PIPELINE_NAME }}\" '.value[] | select(.displayName\
-        \ == $name) | .id')\necho \"pipeline_id=$PIPELINE_ID\" >> $GITHUB_OUTPUT\n\
-        echo \"Found pipeline: $PIPELINE_ID\"\n"
-    - name: Deploy to Test Stage
-      if: github.ref == 'refs/heads/main'
-      run: "# Deploy from dev to test stage\necho \"Deploying to Test stage...\"\n\
-        \n# Get pipeline stages to find source and target stage IDs\nSTAGES_RESPONSE=$(curl\
-        \ -s -X GET \\\n  \"${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id\
-        \ }}/stages\" \\\n  -H \"Authorization: Bearer ${{ steps.get_token.outputs.access_token\
-        \ }}\" \\\n  -H \"Content-Type: application/json\")\n\nSOURCE_STAGE_ID=$(echo\
-        \ \"$STAGES_RESPONSE\" | jq -r '.value[] | select(.order == 0) | .id')\nTARGET_STAGE_ID=$(echo\
-        \ \"$STAGES_RESPONSE\" | jq -r '.value[] | select(.order == 1) | .id')\n\n\
-        # Deploy content\nDEPLOY_PAYLOAD=$(cat <<EOF\n{\n  \"sourceStageOrder\": 0,\n\
-        \  \"targetStageOrder\": 1,\n  \"options\": {\n    \"allowCreateArtifact\"\
-        : true,\n    \"allowOverwriteArtifact\": true\n  }\n}\nEOF\n)\n\nDEPLOY_RESPONSE=$(curl\
-        \ -s -X POST \\\n  \"${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id\
-        \ }}/deploy\" \\\n  -H \"Authorization: Bearer ${{ steps.get_token.outputs.access_token\
-        \ }}\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"$DEPLOY_PAYLOAD\"\
-        )\n\nOPERATION_ID=$(echo \"$DEPLOY_RESPONSE\" | jq -r '.id')\necho \"Deployment\
-        \ started. Operation ID: $OPERATION_ID\"\n"
-    - name: Monitor Deployment Status
-      if: github.ref == 'refs/heads/main'
-      run: "# Wait for deployment to complete\necho \"Monitoring deployment status...\"\
-        \n\nfor i in {1..30}; do\n  STATUS_RESPONSE=$(curl -s -X GET \\\n    \"${{\
-        \ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id\
-        \ }}/operations\" \\\n    -H \"Authorization: Bearer ${{ steps.get_token.outputs.access_token\
-        \ }}\" \\\n    -H \"Content-Type: application/json\")\n  \n  LATEST_STATUS=$(echo\
-        \ \"$STATUS_RESPONSE\" | jq -r '.value[0].status // \"Unknown\"')\n  echo\
-        \ \"Current status: $LATEST_STATUS\"\n  \n  if [ \"$LATEST_STATUS\" = \"Succeeded\"\
-        \ ]; then\n    echo \"\u2705 Deployment completed successfully!\"\n    break\n\
-        \  elif [ \"$LATEST_STATUS\" = \"Failed\" ]; then\n    echo \"\u274C Deployment\
-        \ failed!\"\n    exit 1\n  fi\n  \n  echo \"Waiting for deployment to complete...\
-        \ (attempt $i/30)\"\n  sleep 10\ndone\n"
-    - name: Deploy to Production (Manual Approval)
-      if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
-      run: "# Deploy from test to production (only on manual trigger)\necho \"Deploying\
-        \ to Production stage...\"\n\nDEPLOY_PAYLOAD=$(cat <<EOF\n{\n  \"sourceStageOrder\"\
-        : 1,\n  \"targetStageOrder\": 2,\n  \"options\": {\n    \"allowCreateArtifact\"\
-        : true,\n    \"allowOverwriteArtifact\": true\n  }\n}\nEOF\n)\n\ncurl -s -X\
-        \ POST \\\n  \"${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id\
-        \ }}/deploy\" \\\n  -H \"Authorization: Bearer ${{ steps.get_token.outputs.access_token\
-        \ }}\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"$DEPLOY_PAYLOAD\"\
-        \n\necho \"Production deployment initiated\"\n"
-    - name: Commit Changes Back to Git
-      if: github.event_name == 'workflow_dispatch'
-      run: "# Commit any workspace changes back to Git\necho \"Committing workspace\
-        \ changes to Git...\"\n\nCOMMIT_PAYLOAD=$(cat <<EOF\n{\n  \"mode\": \"All\"\
-        ,\n  \"comment\": \"Automated deployment commit from GitHub Actions\",\n \
-        \ \"workspaceHead\": \"main\"\n}\nEOF\n)\n\ncurl -s -X POST \\\n  \"${{ env.FABRIC_API_URL\
-        \ }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/commitToGit\"\
-        \ \\\n  -H \"Authorization: Bearer ${{ steps.get_token.outputs.access_token\
-        \ }}\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"$COMMIT_PAYLOAD\"\
-        \n\necho \"Changes committed to Git\""
+      - name: Get Azure AD Token
+        id: get_token
+        run: |
+          TOKEN_RESPONSE=$(curl -s -X POST             "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token"             -H "Content-Type: application/x-www-form-urlencoded"             -d "client_id=${{ secrets.CLIENT_ID }}"             -d "client_secret=${{ secrets.CLIENT_SECRET }}"             -d "scope=https://api.fabric.microsoft.com/.default"             -d "grant_type=client_credentials")
+          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Get Workspace ID
+        id: get_workspace
+        run: |
+          WORKSPACE_RESPONSE=$(curl -s -X GET             "${{ env.FABRIC_API_URL }}/workspaces"             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"             -H "Content-Type: application/json")
+          echo "Workspace API response:"
+          echo "$WORKSPACE_RESPONSE"
+          WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ env.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
+          echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
+
+      - name: Get Deployment Pipeline ID
+        id: get_pipeline
+        run: |
+          PIPELINES_RESPONSE=$(curl -s -X GET             "${{ env.FABRIC_API_URL }}/deploymentPipelines"             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"             -H "Content-Type: application/json")
+          PIPELINE_ID=$(echo "$PIPELINES_RESPONSE" | jq -r --arg name "${{ env.PIPELINE_NAME }}" '.value[] | select(.displayName == $name) | .id')
+          echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Test Stage
+        if: github.ref == 'refs/heads/main'
+        run: |
+          STAGES_RESPONSE=$(curl -s -X GET             "${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id }}/stages"             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"             -H "Content-Type: application/json")
+          SOURCE_STAGE_ID=$(echo "$STAGES_RESPONSE" | jq -r '.value[] | select(.order == 0) | .id')
+          TARGET_STAGE_ID=$(echo "$STAGES_RESPONSE" | jq -r '.value[] | select(.order == 1) | .id')
+          DEPLOY_PAYLOAD=$(cat <<EOF
+          {
+            "sourceStageOrder": 0,
+            "targetStageOrder": 1,
+            "options": {
+              "allowCreateArtifact": true,
+              "allowOverwriteArtifact": true
+            }
+          }
+          EOF
+          )
+          curl -s -X POST             "${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id }}/deploy"             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"             -H "Content-Type: application/json"             -d "$DEPLOY_PAYLOAD"
+
+      - name: Deploy to Production (Manual Approval)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+        run: |
+          DEPLOY_PAYLOAD=$(cat <<EOF
+          {
+            "sourceStageOrder": 1,
+            "targetStageOrder": 2,
+            "options": {
+              "allowCreateArtifact": true,
+              "allowOverwriteArtifact": true
+            }
+          }
+          EOF
+          )
+          curl -s -X POST             "${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id }}/deploy"             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"             -H "Content-Type: application/json"             -d "$DEPLOY_PAYLOAD"
+
+      - name: Commit Changes Back to Git
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          COMMIT_PAYLOAD=$(cat <<EOF
+          {
+            "mode": "All",
+            "comment": "Automated deployment commit from GitHub Actions",
+            "workspaceHead": "main"
+          }
+          EOF
+          )
+          curl -s -X POST             "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/commitToGit"             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"             -H "Content-Type: application/json"             -d "$COMMIT_PAYLOAD"
