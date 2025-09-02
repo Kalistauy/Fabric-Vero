@@ -1,3 +1,0 @@
-curl -s -X GET "https://api.fabric.microsoft.com/v1/workspaces" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json" | jq '.value[] | {id, displayName}'
