@@ -1,9 +1,3 @@
-
-name: Authenticate and get Fabric token
-  run: |
-    Install-Module -Name Az.Accounts -AllowClobber -Force
-    $SecureStringPwd = ConvertTo-SecureString "${{ secrets.AZURE_CLIENT_SECRET }}" -AsPlainText -Force
-    $pscredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList "${{ secrets.AZURE_CLIENT_ID }}", $SecureStringPwd
-    Connect-AzAccount -ServicePrincipal -Credential $pscredential -Tenant "${{ secrets.AZURE_TENANT_ID }}"
-    $fabricToken = (Get-AzAccessToken -ResourceUrl "https://api.fabric.microsoft.com").Token
-    echo "Access token: $fabricToken"
+curl -s -X GET "https://api.fabric.microsoft.com/v1/workspaces" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" | jq '.value[] | {id, displayName}'
