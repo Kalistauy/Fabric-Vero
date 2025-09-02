@@ -1,0 +1,21 @@
+
+name: Get Fabric Token
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-token:
+    runs-on: windows-latest
+    steps:
+      - name: Install PowerShell Module
+        run: |
+          Install-Module -Name Az.Accounts -Force -AllowClobber
+
+      - name: Authenticate and Get Token
+        run: |
+          $SecureStringPwd = ConvertTo-SecureString "${{ secrets.AZURE_CLIENT_SECRET }}" -AsPlainText -Force
+          $pscredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList "${{ secrets.AZURE_CLIENT_ID }}", $SecureStringPwd
+          Connect-AzAccount -ServicePrincipal -Credential $pscredential -Tenant "${{ secrets.AZURE_TENANT_ID }}"
+          $fabricToken = (Get-AzAccessToken -ResourceUrl "https://api.fabric.microsoft.com").Token
+          Write-Output "Access Token: $fabricToken"
