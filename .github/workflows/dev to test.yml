@@ -1,9 +1,37 @@
-- name: Trigger Fabric Deployment (dev → test)
-  run: |
-    TOKEN="${{ steps.get_token.outputs.token }}"
-    RESPONSE=$(curl -s -X POST \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Content-Type: application/json" \
-      "https://api.fabric.microsoft.com/v1/pipelines/1e9ba698-53af-40e6-ace2-4885a126e3d7/deploy?sourceStage=dev&targetStage=test")
-    echo "Deployment response:"
-    echo "$RESPONSE"
+name: Minimal Fabric Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Get Azure AD Token
+        id: get_token
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${{ secrets.SPN_CLIENT_ID }}&client_secret=${{ secrets.SPN_CLIENT_SECRET }}&scope=https://api.fabric.microsoft.com/.default&grant_type=client_credentials" \
+            "https://login.microsoftonline.com/${{ secrets.AAD_TENANT_ID }}/oauth2/v2.0/token")
+          echo "Raw token response: $RESPONSE"
+          TOKEN=$(echo "$RESPONSE" | jq -r .access_token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "❌ Failed to acquire token"
+            exit 1
+          fi
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Trigger Fabric Deployment (dev → test)
+        run: |
+          TOKEN="${{ steps.get_token.outputs.token }}"
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.fabric.microsoft.com/v1/pipelines/1e9ba698-53af-40e6-ace2-4885a126e3d7/deploy?sourceStage=dev&targetStage=test")
+          echo "Deployment response:"
+          echo "$RESPONSE"
