@@ -1,29 +1,27 @@
-name: Deploy to Fabric Test
+name: Deploy Azure ML Pipeline to Test
 
 on:
-  workflow_dispatch:  # Permite ejecución manual desde GitHub
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Deploy artifacts from Dev to Test
-        env:
-          FABRIC_API_TOKEN: ${{ secrets.FABRIC_API_TOKEN }}
-          PIPELINE_ID: ${{ secrets.FABRIC_PIPELINE_ID }}
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy pipeline to Test
         run: |
-          curl -X POST https://api.fabric.microsoft.com/deployment/pipelines/${PIPELINE_ID}/promote \
-            -H "Authorization: Bearer $FABRIC_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "sourceStage": "dev",
-              "targetStage": "test",
-              "artifacts": [
-                { "name": "LakehouseA", "type": "Lakehouse" },
-                { "name": "NotebookB", "type": "Notebook" }
-              ]
-            }'
+          az ml pipeline-endpoint invoke \
+            --name VHS-github-integration-test \
+            --endpoint-type batch \
+            --workspace-name your-workspace-name \
+            --resource-group your-resource-group \
+            --experiment-name your-experiment-name \
+            --set-parameters pipeline_version=6
