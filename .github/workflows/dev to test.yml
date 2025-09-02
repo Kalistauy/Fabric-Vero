@@ -1,27 +1,32 @@
-name: Deploy Azure ML Pipeline to Test
+name: Deploy Lakehouse to Test
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'fabric/dev/lakehouses/**'  # Detecta cambios en cualquier archivo dentro del Lakehouse
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        lakehouse:
+          - name: lakehouse1
+          - name: lakehouse2
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy pipeline to Test
+      - name: Detect Lakehouse changes
+        id: changes
         run: |
-          az ml pipeline-endpoint invoke \
-            --name VHS-github-integration-test \
-            --endpoint-type batch \
-            --workspace-name your-workspace-name \
-            --resource-group your-resource-group \
-            --experiment-name your-experiment-name \
-            --set-parameters pipeline_version=6
+          echo "Detectando cambios en Lakehouse..."
+          # Aquí podrías agregar lógica para comparar nombres o metadatos si los tenés versionados
+
+      - name: Deploy to Test
+        if: steps.changes.outputs.modified == 'true'
+        run: |
+          echo "Desplegando Lakehouse ${{ matrix.lakehouse.name }} a Test..."
+          # Aquí iría tu comando de despliegue, por ejemplo usando Fabric CLI o API
