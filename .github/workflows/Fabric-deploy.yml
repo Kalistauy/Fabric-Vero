@@ -1,7 +1,5 @@
-El contenido es generado por usuarios y no verificado.
-3
-name: Microsoft Fabirc Deploy
-
+name: Microsoft Fabric CI/CD
+#primera parte
 on:
   push:
     branches: [ main ]
@@ -36,7 +34,6 @@ jobs:
         ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
         echo "::add-mask::$ACCESS_TOKEN"
         echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
-
     - name: Get Workspace ID
       id: get_workspace
       run: |
