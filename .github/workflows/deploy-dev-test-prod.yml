@@ -1,0 +1,49 @@
+
+name: Deploy Dev to Test to Prod
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-secret: ${{ secrets.CLIENT_SECRET }}
+
+      - name: Deploy from Dev to Test
+        shell: pwsh
+        run: |
+          $devWorkspaceId = "3852a0cf-16cb-4f37-a56e-68bd00ce4560"
+          $prodWorkspaceName = "ws-github... (Test)"
+          $deploymentPipelineName = "github-integration-pipelines"
+          $description = "Automated deployment from Dev to Test"
+          $principalType = "ServicePrincipal"
+          $clientId = "${{ secrets.CLIENT_ID }}"
+          $tenantId = "${{ secrets.TENANT_ID }}"
+          $servicePrincipalSecret = "${{ secrets.CLIENT_SECRET }}"
+
+          ./DeploymentPipelines-DeployAll.ps1
+
+      - name: Deploy from Test to Prod
+        shell: pwsh
+        run: |
+          $devWorkspaceId = "b0893134-54da-413c-96c7-cf109f8a1fb3"
+          $prodWorkspaceName = "ws-github... (Production)"
+          $deploymentPipelineName = "github-integration-pipelines"
+          $description = "Automated deployment from Test to Prod"
+          $principalType = "ServicePrincipal"
+          $clientId = "${{ secrets.CLIENT_ID }}"
+          $tenantId = "${{ secrets.TENANT_ID }}"
+          $servicePrincipalSecret = "${{ secrets.CLIENT_SECRET }}"
+
+          ./DeploymentPipelines-DeployAll.ps1
