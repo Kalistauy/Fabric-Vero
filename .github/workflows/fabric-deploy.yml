@@ -1,3 +1,5 @@
+El contenido es generado por usuarios y no verificado.
+3
 name: Microsoft Fabric CI/CD
 
 on:
@@ -10,8 +12,6 @@ on:
 env:
   FABRIC_API_URL: "https://api.fabric.microsoft.com/v1"
   AZURE_LOGIN_URL: "https://login.microsoftonline.com"
-  WORKSPACE_NAME: "WS-github-integration-dev"
-  PIPELINE_NAME: "github-integration-pipelines"
 
 jobs:
   deploy:
@@ -25,7 +25,8 @@ jobs:
       id: get_token
       run: |
         # Get access token using service principal
-        TOKEN_RESPONSE=$(curl -s -X POST \
+TOKEN_RESPONSE=$(curl -s -X POST "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token" \
+          "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token" \
           -H "Content-Type: application/x-www-form-urlencoded" \
           -d "client_id=${{ secrets.CLIENT_ID }}" \
           -d "client_secret=${{ secrets.CLIENT_SECRET }}" \
@@ -41,9 +42,11 @@ jobs:
       run: |
         # Get workspace by name
         WORKSPACE_RESPONSE=$(curl -s -X GET \
+          "${{ env.FABRIC_API_URL }}/workspaces" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json")
         
+        WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
         echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
         echo "Found workspace: $WORKSPACE_ID"
 
@@ -51,6 +54,7 @@ jobs:
       run: |
         # Check if workspace is already connected to Git
         GIT_STATUS=$(curl -s -X GET \
+          "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/status" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json")
         
@@ -73,6 +77,7 @@ jobs:
         )
           
           curl -s -X POST \
+            "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/connect" \
             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
             -H "Content-Type: application/json" \
             -d "$CONNECT_PAYLOAD"
@@ -88,6 +93,7 @@ jobs:
         echo "Updating workspace from Git..."
         
         UPDATE_RESPONSE=$(curl -s -X POST \
+          "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/updateFromGit" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json" \
           -d '{"allowOverrideItems": true}')
@@ -100,9 +106,11 @@ jobs:
       run: |
         # Get deployment pipelines
         PIPELINES_RESPONSE=$(curl -s -X GET \
+          "${{ env.FABRIC_API_URL }}/deploymentPipelines" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json")
         
+        PIPELINE_ID=$(echo "$PIPELINES_RESPONSE" | jq -r --arg name "${{ vars.PIPELINE_NAME }}" '.value[] | select(.displayName == $name) | .id')
         echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
         echo "Found pipeline: $PIPELINE_ID"
 
@@ -114,6 +122,7 @@ jobs:
         
         # Get pipeline stages to find source and target stage IDs
         STAGES_RESPONSE=$(curl -s -X GET \
+          "${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id }}/stages" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json")
         
@@ -134,6 +143,7 @@ jobs:
         )
         
         DEPLOY_RESPONSE=$(curl -s -X POST \
+          "${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id }}/deploy" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json" \
           -d "$DEPLOY_PAYLOAD")
@@ -149,6 +159,7 @@ jobs:
         
         for i in {1..30}; do
           STATUS_RESPONSE=$(curl -s -X GET \
+            "${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id }}/operations" \
             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
             -H "Content-Type: application/json")
           
@@ -186,6 +197,7 @@ jobs:
         )
         
         curl -s -X POST \
+          "${{ env.FABRIC_API_URL }}/deploymentPipelines/${{ steps.get_pipeline.outputs.pipeline_id }}/deploy" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json" \
           -d "$DEPLOY_PAYLOAD"
@@ -208,6 +220,7 @@ jobs:
         )
         
         curl -s -X POST \
+          "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/commitToGit" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json" \
           -d "$COMMIT_PAYLOAD"
