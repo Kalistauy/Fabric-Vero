@@ -46,7 +46,7 @@ jobs:
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json")
         
-        WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
+        WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ env.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
         echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
         echo "Found workspace: $WORKSPACE_ID"
 
