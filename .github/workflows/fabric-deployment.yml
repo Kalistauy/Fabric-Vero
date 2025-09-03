@@ -10,6 +10,8 @@ on:
   workflow_dispatch:
 
 env:
+  WORKSPACE_NAME: "WS-github-integration-dev"
+  PIPELINE_NAME: "github-integration-pipelines"
   FABRIC_API_URL: "https://api.fabric.microsoft.com/v1"
   AZURE_LOGIN_URL: "https://login.microsoftonline.com"
 
@@ -110,7 +112,7 @@ jobs:
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
           -H "Content-Type: application/json")
         
-        PIPELINE_ID=$(echo "$PIPELINES_RESPONSE" | jq -r --arg name "${{ vars.PIPELINE_NAME }}" '.value[] | select(.displayName == $name) | .id')
+        PIPELINE_ID=$(echo "$PIPELINES_RESPONSE" | jq -r --arg name "${{ env.PIPELINE_NAME }}" '.value[] | select(.displayName == $name) | .id')
         echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
         echo "Found pipeline: $PIPELINE_ID"
 
