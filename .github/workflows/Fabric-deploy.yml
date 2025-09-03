@@ -1,6 +1,6 @@
 El contenido es generado por usuarios y no verificado.
 3
-name: Microsoft Fabric CI/CD
+name: Microsoft Fabirc Deploy
 
 on:
   push:
