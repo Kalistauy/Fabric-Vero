@@ -7,9 +7,9 @@ jobs:
   call-powerbi:
     runs-on: ubuntu-latest
     env:
-      TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
-      CLIENT_ID: ${{ secrets.SPN_CLIENT_ID }}
-      CLIENT_SECRET: ${{ secrets.SPN_CLIENT_SECRET }}
+      TENANT_ID: ${{ secrets.TENANT_ID }}
+      CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
     steps:
       - name: Get Azure AD Token
         id: token
