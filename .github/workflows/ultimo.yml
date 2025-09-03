@@ -41,10 +41,13 @@ jobs:
     needs: sync-from-github
     steps:
       - name: Llamar a la API de Fabric para copiar contenido
-    run: |      response=$(curl -s -w "%{http_code}" -o response.json -X POST https://api.fabric.microsoft.com/v1/workspaces/3852a0cf-16cb-4f37-a56e-68bd00ce4560/copyToWorkspace \        -H "Authorization: Bearer ${{ needs.get-token.outputs.access_token }}" \        -H "Content-Type: application/json" \        -d '{              "targetWorkspaceId": "b0893134-54da-413c-96c7-cf109f8a1fb3",              "overwrite": true            }'      echo "Código HTTP: $response"      cat response.json          curl -X POST https://api.fabric.microsoft.com/v1/workspaces/3852a0cf-16cb-4f37-a56e-68bd00ce4560/copyToWorkspace \
+        run: |
+          response=$(curl -s -w "%{http_code}" -o response.json -X POST https://api.fabric.microsoft.com/v1/workspaces/3852a0cf-16cb-4f37-a56e-68bd00ce4560/copyToWorkspace \
             -H "Authorization: Bearer ${{ needs.get-token.outputs.access_token }}" \
             -H "Content-Type: application/json" \
             -d '{
                   "targetWorkspaceId": "b0893134-54da-413c-96c7-cf109f8a1fb3",
                   "overwrite": true
-                }'
+                }')
+          echo "Código HTTP: $response"
+          cat response.json
