@@ -48,8 +48,7 @@ jobs:
         echo "Found workspace: $WORKSPACE_ID"
 
          - name: Connect to Git (if not already connected)
-      run: |
-        # Check if workspace is already connected to Git
+              # Check if workspace is already connected to Git
         GIT_STATUS=$(curl -s -X GET \
           "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/status" \
           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
