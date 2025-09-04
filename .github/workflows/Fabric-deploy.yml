@@ -53,6 +53,8 @@ jobs:
     name: Deploy from Dev to Test
     needs: get-token-and-workspace
     runs-on: ubuntu-latest
+    outputs:
+      access_token: ${{ needs.get-token-and-workspace.outputs.access_token }}
     steps:
       - name: Deploy content
         run: |
@@ -72,3 +74,28 @@ jobs:
 
           echo "Deployment initiated"
           echo "$DEPLOY_RESPONSE"
+
+  deploy-test-to-prod:
+    name: Deploy from Test to Prod
+    needs: deploy-dev-to-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy content from Test to Prod
+        run: |
+          echo "Starting deployment from Test to Prod workspace..."
+
+          ACCESS_TOKEN="${{ needs.deploy-dev-to-test.outputs.access_token }}"
+          TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+          PROD_WORKSPACE_ID="${{ secrets.PROD_WORKSPACE_ID }}"
+
+          JSON_PAYLOAD=$(jq -n --arg target "$PROD_WORKSPACE_ID" '{targetWorkspaceId: $target}')
+
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "${{ env.FABRIC_API_URL }}/workspaces/$TEST_WORKSPACE_ID/deployWorkspace" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+
+          echo "Deployment to Prod completed"
+          echo "$DEPLOY_RESPONSE"
+
