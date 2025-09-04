@@ -92,15 +92,24 @@ jobs:
         echo "Update initiated"
         echo "$UPDATE_RESPONSE"
 
-    - name: Deploy from Dev to Test
+        - name: Deploy from Dev to Test
       run: |
         echo "Starting deployment from Dev to Test workspace..."
 
+        # 🔹 Asignación de variables dentro del script Bash
+        ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
+        DEV_WORKSPACE_ID="${{ secrets.DEV_WORKSPACE_ID }}"
+        TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+
+        # 🔹 Construcción del JSON
+        JSON_PAYLOAD=$(jq -n --arg target "$TEST_WORKSPACE_ID" '{targetWorkspaceId: $target}')
+
+        # 🔹 Llamada a la API
         DEPLOY_RESPONSE=$(curl -s -X POST \
-          "${{ env.FABRIC_API_URL }}/workspaces/${{ secrets.DEV_WORKSPACE_ID }}/deployWorkspace" \
-          -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
+          "${{ env.FABRIC_API_URL }}/workspaces/$DEV_WORKSPACE_ID/deployWorkspace" \
+          -H "Authorization: Bearer $ACCESS_TOKEN" \
           -H "Content-Type: application/json" \
-          -d "{\"targetWorkspaceId\": \"${{ secrets.TEST_WORKSPACE_ID }}\"}")
+          -d "$JSON_PAYLOAD")
 
         echo "Deployment initiated"
         echo "$DEPLOY_RESPONSE"
