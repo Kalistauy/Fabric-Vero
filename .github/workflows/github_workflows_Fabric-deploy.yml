@@ -92,7 +92,7 @@ jobs:
         echo "Update initiated"
         echo "$UPDATE_RESPONSE"
 
-        - name: Deploy from Dev to Test
+    - name: Deploy from Dev to Test
       run: |
         echo "Starting deployment from Dev to Test workspace..."
 
