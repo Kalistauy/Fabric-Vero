@@ -1,0 +1,136 @@
+name: Microsoft Fabric CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  FABRIC_API_URL: "https://api.fabric.microsoft.com/v1"
+  AZURE_LOGIN_URL: "https://login.microsoftonline.com"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Get Azure AD Token
+      id: get_token
+      run: |
+        TOKEN_RESPONSE=$(curl -s -X POST \
+          "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "client_id=${{ secrets.CLIENT_ID }}" \
+          -d "client_secret=${{ secrets.CLIENT_SECRET }}" \
+          -d "scope=https://api.fabric.microsoft.com/.default" \
+          -d "grant_type=client_credentials")
+
+        ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
+        echo "::add-mask::$ACCESS_TOKEN"
+        echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
+    - name: Get Workspace ID
+      id: get_workspace
+      run: |
+        WORKSPACE_RESPONSE=$(curl -s -X GET \
+          "${{ env.FABRIC_API_URL }}/workspaces" \
+          -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
+          -H "Content-Type: application/json")
+
+        WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
+        echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
+        echo "Found workspace: $WORKSPACE_ID"
+
+    - name: Connect to Git (if not already connected)
+      run: |
+        GIT_STATUS=$(curl -s -X GET \
+          "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/status" \
+          -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
+          -H "Content-Type: application/json")
+
+        IS_CONNECTED=$(echo "$GIT_STATUS" | jq -r '.isGitSyncEnabled // false')
+
+        if [ "$IS_CONNECTED" != "true" ]; then
+          echo "Connecting workspace to Git..."
+
+          CONNECT_PAYLOAD='{
+            "gitProviderDetails": {
+              "gitProviderType": "GitHub",
+              "ownerName": "${{ github.repository_owner }}",
+              "repositoryName": "${{ github.event.repository.name }}",
+              "branchName": "${{ github.ref_name }}",
+              "directoryName": "fabric-items"
+            }
+          }'
+
+          curl -s -X POST \
+            "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/connect" \
+            -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
+            -H "Content-Type: application/json" \
+            -d "$CONNECT_PAYLOAD"
+
+          echo "Workspace connected to Git"
+        else
+          echo "Workspace already connected to Git"
+        fi
+
+    - name: Update from Git
+      run: |
+        echo "Updating workspace from Git..."
+
+        UPDATE_RESPONSE=$(curl -s -X POST \
+          "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/updateFromGit" \
+          -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
+          -H "Content-Type: application/json" \
+          -d '{"allowOverrideItems": true}')
+
+        echo "Update initiated"
+        echo "$UPDATE_RESPONSE"
+
+    - name: Deploy from Dev to Test
+      run: |
+        echo "Starting deployment from Dev to Test workspace..."
+
+        # 🔹 Asignación de variables dentro del script Bash
+        ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
+        DEV_WORKSPACE_ID="${{ secrets.DEV_WORKSPACE_ID }}"
+        TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+
+        # 🔹 Construcción del JSON
+        JSON_PAYLOAD=$(jq -n --arg target "$TEST_WORKSPACE_ID" '{targetWorkspaceId: $target}')
+
+        # 🔹 Llamada a la API
+        DEPLOY_RESPONSE=$(curl -s -X POST \
+          "${{ env.FABRIC_API_URL }}/workspaces/$DEV_WORKSPACE_ID/deployWorkspace" \
+          -H "Authorization: Bearer $ACCESS_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$JSON_PAYLOAD")
+
+        echo "Deployment initiated"
+        echo "$DEPLOY_RESPONSE"
+
+        
+   - name: Deploy from Test to Prod
+  run: |
+    echo "Starting deployment from Test to Prod workspace..."
+
+    ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
+    TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+    PROD_WORKSPACE_ID="${{ secrets.PROD_WORKSPACE_ID }}"
+
+    JSON_PAYLOAD=$(jq -n --arg target "$PROD_WORKSPACE_ID" '{targetWorkspaceId: $target}')
+
+    DEPLOY_RESPONSE=$(curl -s -X POST \
+      "${{ env.FABRIC_API_URL }}/workspaces/$TEST_WORKSPACE_ID/deployWorkspace" \
+      -H "Authorization: Bearer $ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "$JSON_PAYLOAD")
+
+    echo "Deployment initiated"
+    echo "$DEPLOY_RESPONSE"
+
