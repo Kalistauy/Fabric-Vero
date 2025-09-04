@@ -113,3 +113,23 @@ jobs:
 
         echo "Deployment initiated"
         echo "$DEPLOY_RESPONSE"
+
+        
+    - name: Deploy from Test to Prod
+      run:  |
+       echo "Starting deployment from Test to Prod workspace..."
+
+       ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
+       TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+       PROD_WORKSPACE_ID="${{ secrets.PROD_WORKSPACE_ID }}"
+
+    continue-on-error: $target}')
+
+     DEPLOY_RESPONSE=$(curl -s -X POST \
+      "${{ env.FABRIC_API_URL }}/workspaces/$TEST_WORKSPACE_ID/deployWorkspace" \
+      -H "Authorization:Bearer $ACCESS_TOKEN" \
+      -H "Content-Type:application/json" \
+      -d "$JSON_PAYLOAD")
+
+      echo "Deployment initiated"
+      echo "$DEPLOY_RESPONSE"
