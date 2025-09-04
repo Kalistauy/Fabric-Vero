@@ -1,4 +1,5 @@
 
+
 name: Microsoft Fabric CI/CD
 
 on:
@@ -72,3 +73,12 @@ jobs:
 
         echo "Update initiated"
         echo "$UPDATE_RESPONSE"
+
+       - name: Deploy from Dev to Test
+  run: |
+    echo "Starting deployment from Dev to Test workspace..."
+
+    DEPLOY_RESPONSE=$(curl -s -X POST       "${{ env.FABRIC_API_URL }}/workspaces/${{ vars.DEV_WORKSPACE_ID }}/deployWorkspace"       -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"       -H "Content-Type: application/json"       -d '{"targetWorkspaceId": "${{ vars.TEST_WORKSPACE_ID }}"}')
+
+    echo "Deployment initiated"
+    echo "$DEPLOY_RESPONSE"
