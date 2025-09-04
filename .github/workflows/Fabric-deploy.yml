@@ -78,10 +78,10 @@ jobs:
     echo "Starting deployment from Dev to Test workspace..."
 
     DEPLOY_RESPONSE=$(curl -s -X POST \
-      "https://api.fabric.microsoft.com/v1/workspaces/${{ secrets.DEV_WORKSPACE_ID }}/deployWorkspace" \
+      "https://api.fabric.microsoft.com/v1/workspaces/3852a0cf-16cb-4f37-a56e-68bd00ce4560/deployWorkspace" \
       -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
       -H "Content-Type: application/json" \
-      -d "{\"targetWorkspaceId\": \"${{ secrets.TEST_WORKSPACE_ID }}\"}")
+      -d "{\"targetWorkspaceId\": \"b0893134-54da-413c-96c7-cf109f8a1fb3\"}")
 
     echo "Deployment initiated"
     echo "$DEPLOY_RESPONSE"
