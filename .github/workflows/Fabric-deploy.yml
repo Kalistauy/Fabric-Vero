@@ -31,7 +31,7 @@ jobs:
     - name: Get Workspace ID
       id: get_workspace
       run: |
-        WORKSPACE_RESPONSE=$(curl -s -X GET           "${{ env.FABRIC_API_URL }}/workspaces"           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"           -H "Content-Type: application/json")
+        WORKSPACE_RESPONSE=$(curl -s -X GET           "${{ env.FABRIC_API_URL }}/workspaces"           -H "Authorization: Bearer $ACCESS_TOKEN"           -H "Content-Type: application/json")
 
         WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
         echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
@@ -39,7 +39,7 @@ jobs:
 
     - name: Connect to Git (if not already connected)
       run: |
-        GIT_STATUS=$(curl -s -X GET           "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/status"           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"           -H "Content-Type: application/json")
+        GIT_STATUS=$(curl -s -X GET           "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/status"           -H "Authorization: Bearer $ACCESS_TOKEN"           -H "Content-Type: application/json")
 
         IS_CONNECTED=$(echo "$GIT_STATUS" | jq -r '.isGitSyncEnabled // false')
 
@@ -56,7 +56,7 @@ jobs:
             }
           }'
 
-          curl -s -X POST             "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/connect"             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"             -H "Content-Type: application/json"             -d "$CONNECT_PAYLOAD"
+          curl -s -X POST             "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/connect"             -H "Authorization: Bearer $ACCESS_TOKEN"             -H "Content-Type: application/json"             -d "$CONNECT_PAYLOAD"
 
           echo "Workspace connected to Git"
         else
@@ -67,7 +67,7 @@ jobs:
       run: |
         echo "Updating workspace from Git..."
 
-        UPDATE_RESPONSE=$(curl -s -X POST           "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/updateFromGit"           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"           -H "Content-Type: application/json"           -d '{"allowOverrideItems": true}')
+        UPDATE_RESPONSE=$(curl -s -X POST           "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/updateFromGit"           -H "Authorization: Bearer $ACCESS_TOKEN"           -H "Content-Type: application/json"           -d '{"allowOverrideItems": true}')
 
         echo "Update initiated"
         echo "$UPDATE_RESPONSE"
@@ -75,13 +75,14 @@ jobs:
     
     - name: Deploy from Dev to Test
   run: |
+ACCESS_TOKEN=$ACCESS_TOKEN
     echo "Starting deployment from Dev to Test workspace..."
 
     DEPLOY_RESPONSE=$(curl -s -X POST \
-      "https://api.fabric.microsoft.com/v1/workspaces/3852a0cf-16cb-4f37-a56e-68bd00ce4560/deployWorkspace" \
-      -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
+      "https://api.fabric.microsoft.com/v1/workspaces/${{ secrets.DEV_WORKSPACE_ID }}/deployWorkspace" \
+      -H "Authorization: Bearer $ACCESS_TOKEN" \
       -H "Content-Type: application/json" \
-      -d "{\"targetWorkspaceId\": \"b0893134-54da-413c-96c7-cf109f8a1fb3\"}")
+      -d "{\"targetWorkspaceId\": \"${{ secrets.TEST_WORKSPACE_ID }}\"}")
 
     echo "Deployment initiated"
     echo "$DEPLOY_RESPONSE"
