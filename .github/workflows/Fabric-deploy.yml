@@ -1,5 +1,6 @@
+
 name: Microsoft Fabric CI/CD
-#primera parte
+
 on:
   push:
     branches: [ main ]
@@ -14,7 +15,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -22,40 +23,30 @@ jobs:
     - name: Get Azure AD Token
       id: get_token
       run: |
-        # Get access token using service principal
-        TOKEN_RESPONSE=$(curl -s -X POST \
-          "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token" \
-          -H "Content-Type: application/x-www-form-urlencoded" \
-          -d "client_id=${{ secrets.CLIENT_ID }}" \
-          -d "client_secret=${{ secrets.CLIENT_SECRET }}" \
-          -d "scope=https://api.fabric.microsoft.com/.default" \
-          -d "grant_type=client_credentials")
-        
+        TOKEN_RESPONSE=$(curl -s -X POST           "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token"           -H "Content-Type: application/x-www-form-urlencoded"           -d "client_id=${{ secrets.CLIENT_ID }}"           -d "client_secret=${{ secrets.CLIENT_SECRET }}"           -d "scope=https://api.fabric.microsoft.com/.default"           -d "grant_type=client_credentials")
+
         ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
         echo "::add-mask::$ACCESS_TOKEN"
         echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
     - name: Get Workspace ID
       id: get_workspace
       run: |
-        # Get workspace by name
-        WORKSPACE_RESPONSE=$(curl -s -X GET \
-          "${{ env.FABRIC_API_URL }}/workspaces" \
-          -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
-          -H "Content-Type: application/json")
+        WORKSPACE_RESPONSE=$(curl -s -X GET           "${{ env.FABRIC_API_URL }}/workspaces"           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"           -H "Content-Type: application/json")
 
-          - name: Connect to Git (if not already connected)
+        WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
+        echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
+        echo "Found workspace: $WORKSPACE_ID"
+
+    - name: Connect to Git (if not already connected)
       run: |
-        # Check if workspace is already connected to Git
-        GIT_STATUS=$(curl -s -X GET \
-          "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/status" \
-          -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
-          -H "Content-Type: application/json")
-        
+        GIT_STATUS=$(curl -s -X GET           "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/status"           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"           -H "Content-Type: application/json")
+
         IS_CONNECTED=$(echo "$GIT_STATUS" | jq -r '.isGitSyncEnabled // false')
-        
+
         if [ "$IS_CONNECTED" != "true" ]; then
           echo "Connecting workspace to Git..."
-          
+
           CONNECT_PAYLOAD=$(cat <<EOF
         {
           "gitProviderDetails": {
@@ -66,15 +57,11 @@ jobs:
             "directoryName": "fabric-items"
           }
         }
-        EOF
-        )
-          
-          curl -s -X POST \
-            "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/connect" \
-            -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
-            -H "Content-Type: application/json" \
-            -d "$CONNECT_PAYLOAD"
-          
+EOF
+          )
+
+          curl -s -X POST             "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/connect"             -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"             -H "Content-Type: application/json"             -d "$CONNECT_PAYLOAD"
+
           echo "Workspace connected to Git"
         else
           echo "Workspace already connected to Git"
@@ -82,21 +69,9 @@ jobs:
 
     - name: Update from Git
       run: |
-        # Sync workspace with latest Git changes
         echo "Updating workspace from Git..."
-        
-        UPDATE_RESPONSE=$(curl -s -X POST \
-          "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/updateFromGit" \
-          -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
-          -H "Content-Type: application/json" \
-          -d '{"allowOverrideItems": true}')
-        
+
+        UPDATE_RESPONSE=$(curl -s -X POST           "${{ env.FABRIC_API_URL }}/workspaces/${{ steps.get_workspace.outputs.workspace_id }}/git/updateFromGit"           -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}"           -H "Content-Type: application/json"           -d '{"allowOverrideItems": true}')
+
         echo "Update initiated"
         echo "$UPDATE_RESPONSE"
-
-        
-        WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
-        echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
-        echo "Found workspace: $WORKSPACE_ID"
-
-         
