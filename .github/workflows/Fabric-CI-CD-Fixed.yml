@@ -171,7 +171,7 @@ jobs:
 
           # Get token and workspace IDs
           ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
-          DEV_WORKSPACE_ID="${{ secrets.DEVELOPMENT_WORKSPACE_ID }}"
+          DEV_WORKSPACE_ID="${{ secrets.DEV_WORKSPACE_ID }}"
           TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
 
           echo "🔍 Validating inputs..."
