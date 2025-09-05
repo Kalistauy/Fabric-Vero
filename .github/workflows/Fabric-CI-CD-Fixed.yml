@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  FABRIC_API_URL: "https://api.fabric.microsoft.com/v1"
+  FABRIC_API_URL: "https://login.microsoftonline.com/6574ea00-e7f1-42ec-84c2-4e50527415c6/oauth2/v2.0/authorize"
   AZURE_LOGIN_URL: "https://login.microsoftonline.com"
   WORKSPACE_NAME: ${{ vars.WORKSPACE_NAME }}
 
