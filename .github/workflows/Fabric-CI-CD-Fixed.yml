@@ -17,7 +17,6 @@ jobs:
     name: Get Azure AD Token and Workspace ID
     runs-on: ubuntu-latest
     outputs:
-      access_token: ${{ steps.get_token.outputs.access_token }}
       workspace_id: ${{ steps.get_workspace.outputs.workspace_id }}
     steps:
       - name: Checkout code
@@ -118,9 +117,51 @@ jobs:
     name: Deploy from Dev to Test
     needs: get-token-and-workspace
     runs-on: ubuntu-latest
-    outputs:
-      access_token: ${{ needs.get-token-and-workspace.outputs.access_token }}
     steps:
+      - name: Get Azure AD Token
+        id: get_token
+        run: |
+          set -e
+          set -o pipefail
+          
+          echo "🔐 Requesting Azure AD token..."
+          
+          # Make token request with HTTP status validation
+          TOKEN_RESPONSE=$(curl -w "\n%{http_code}" -s -X POST \
+            "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${{ secrets.CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.CLIENT_SECRET }}" \
+            -d "scope=https://api.fabric.microsoft.com/.default" \
+            -d "grant_type=client_credentials")
+
+          # Extract HTTP status code and response body
+          HTTP_CODE=$(echo "$TOKEN_RESPONSE" | tail -n1)
+          TOKEN_RESPONSE_BODY=$(echo "$TOKEN_RESPONSE" | sed '$d')
+
+          echo "📊 Token request HTTP status: $HTTP_CODE"
+
+          # Validate HTTP status
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ ERROR: Token request failed with HTTP $HTTP_CODE"
+            echo "Response: $TOKEN_RESPONSE_BODY"
+            exit 1
+          fi
+
+          # Extract access token
+          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE_BODY" | jq -r '.access_token')
+          
+          # Validate token extraction
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
+            echo "❌ ERROR: Failed to extract access token from response"
+            echo "Response: $TOKEN_RESPONSE_BODY"
+            exit 1
+          fi
+
+          echo "✅ Token obtained successfully (length: ${#ACCESS_TOKEN})"
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
       - name: Deploy content
         run: |
           set -e
@@ -129,7 +170,7 @@ jobs:
           echo "🚀 Starting deployment from Dev to Test workspace..."
 
           # Get token and workspace IDs
-          ACCESS_TOKEN="${{ needs.get-token-and-workspace.outputs.access_token }}"
+          ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
           DEV_WORKSPACE_ID="${{ secrets.DEV_WORKSPACE_ID }}"
           TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
 
@@ -194,6 +235,50 @@ jobs:
     needs: deploy-dev-to-test
     runs-on: ubuntu-latest
     steps:
+      - name: Get Azure AD Token
+        id: get_token
+        run: |
+          set -e
+          set -o pipefail
+          
+          echo "🔐 Requesting Azure AD token..."
+          
+          # Make token request with HTTP status validation
+          TOKEN_RESPONSE=$(curl -w "\n%{http_code}" -s -X POST \
+            "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${{ secrets.CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.CLIENT_SECRET }}" \
+            -d "scope=https://api.fabric.microsoft.com/.default" \
+            -d "grant_type=client_credentials")
+
+          # Extract HTTP status code and response body
+          HTTP_CODE=$(echo "$TOKEN_RESPONSE" | tail -n1)
+          TOKEN_RESPONSE_BODY=$(echo "$TOKEN_RESPONSE" | sed '$d')
+
+          echo "📊 Token request HTTP status: $HTTP_CODE"
+
+          # Validate HTTP status
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ ERROR: Token request failed with HTTP $HTTP_CODE"
+            echo "Response: $TOKEN_RESPONSE_BODY"
+            exit 1
+          fi
+
+          # Extract access token
+          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE_BODY" | jq -r '.access_token')
+          
+          # Validate token extraction
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
+            echo "❌ ERROR: Failed to extract access token from response"
+            echo "Response: $TOKEN_RESPONSE_BODY"
+            exit 1
+          fi
+
+          echo "✅ Token obtained successfully (length: ${#ACCESS_TOKEN})"
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
       - name: Copy content from Test to Prod
         run: |
           set -e
@@ -202,7 +287,7 @@ jobs:
           echo "🚀 Starting deployment from Test to Prod workspace..."
 
           # Get token and workspace IDs
-          ACCESS_TOKEN="${{ needs.deploy-dev-to-test.outputs.access_token }}"
+          ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
           TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
           PROD_WORKSPACE_ID="${{ secrets.PROD_WORKSPACE_ID }}"
 
