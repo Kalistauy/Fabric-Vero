@@ -36,7 +36,7 @@ jobs:
           ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
           
           if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ]; then
-            echo "Error obteniendo el token de acceso" >&2
+            echo "Error obteniendo token" >&2
             exit 1
           fi
 
@@ -70,24 +70,27 @@ jobs:
         run: |
           echo "Starting deployment from Dev to Test workspace..."
 
-          # Obtenemos el token y las variables necesarias
+          # Obtener el token del output del job anterior
           ACCESS_TOKEN="${{ needs.get-token-and-workspace.outputs.access_token }}"
           DEV_WORKSPACE_ID="${{ secrets.DEV_WORKSPACE_ID }}"
           TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
 
-          # Confirmamos que el token no esté vacío
+          # Verificar que el token no esté vacío
           if [ -z "$ACCESS_TOKEN" ]; then
             echo "Error: Token de acceso vacío" >&2
             exit 1
           fi
 
-          # Construimos payload
+          # Mostrar el token (opcional, solo para depuración)
+          echo "Token de acceso: $ACCESS_TOKEN"
+
+          # Construir payload JSON
           JSON_PAYLOAD=$(jq -n --arg target "$TEST_WORKSPACE_ID" '{targetWorkspaceId: $target}')
 
-          # Endpoint correcto para desplegar workspace (ajusta si es necesario)
-          DEPLOY_ENDPOINT="${{ env.FABRIC_API_URL }}/workspaces/$DEV_WORKSPACE_ID/deployWorkspace"
+          # Endpoint correcto para desplegar workspace
+          DEPLOY_ENDPOINT="https://api.fabric.microsoft.com/v1/workspaces/$DEV_WORKSPACE_ID/deployWorkspace"
 
-          # Realizamos el despliegue
+          # Ejecutar despliegue
           DEPLOY_RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
@@ -105,6 +108,13 @@ jobs:
         run: |
           echo "Starting deployment from Test to Prod workspace..."
 
-          # Obtener token del paso anterior
+          # Obtener el token del output del job anterior
           ACCESS_TOKEN="${{ needs.get-token-and-workspace.outputs.access_token }}"
-          TEST_WORKSPACE_ID
+          TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+          PROD_WORKSPACE_ID="${{ secrets.PROD_WORKSPACE_ID }}"
+
+          # Verificar que el token no esté vacío
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "Error: Token de acceso vacío" >&2
+            exit 1
+          fi
