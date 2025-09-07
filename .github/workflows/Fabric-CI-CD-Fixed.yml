@@ -10,7 +10,7 @@ on:
 env:
   FABRIC_API_URL: "https://api.fabric.microsoft.com/v1"
   AZURE_LOGIN_URL: "https://login.microsoftonline.com"
-  WORKSPACE_NAME: ${{ vars.WORKSPACE_NAME }}
+  WORKSPACE_NAME: ${{ env.WORKSPACE_NAME }}
 
 jobs:
   get-token-and-workspace:
