@@ -1,0 +1,94 @@
+name: Microsoft Fabric CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  FABRIC_API_URL: "https://api.fabric.microsoft.com/v1"
+  AZURE_LOGIN_URL: "https://login.microsoftonline.com"
+
+jobs:
+  get-token:
+    name: Get Azure AD Token
+    runs-on: ubuntu-latest
+    outputs:
+      access_token: ${{ steps.get_token.outputs.access_token }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get Azure AD Token
+        id: get_token
+        run: |
+          TOKEN_RESPONSE=$(curl -s -X POST \
+            "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${{ secrets.CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.CLIENT_SECRET }}" \
+            -d "scope=https://api.fabric.microsoft.com/.default" \
+            -d "grant_type=client_credentials")
+          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
+  deploy-dev-to-test:
+    name: Deploy from Dev to Test
+    needs: get-token
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy content from Dev to Test workspace
+        run: |
+          echo "Starting deployment from Dev to Test workspace..."
+
+          ACCESS_TOKEN="${{ needs.get-token.outputs.access_token }}"
+          DEV_WORKSPACE_ID="${{ secrets.DEV_WORKSPACE_ID }}"
+          TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+
+          if [ -z "$DEV_WORKSPACE_ID" ] || [ -z "$TEST_WORKSPACE_ID" ]; then
+            echo "❌ ERROR: Workspace IDs are not set as secrets."
+            exit 1
+          fi
+
+          JSON_PAYLOAD=$(jq -n --arg target "$TEST_WORKSPACE_ID" '{targetWorkspaceId: $target}')
+
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "${{ env.FABRIC_API_URL }}/workspaces/$DEV_WORKSPACE_ID/deployWorkspace" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+
+          echo "Deployment initiated"
+          echo "$DEPLOY_RESPONSE"
+
+  deploy-test-to-prod:
+    name: Deploy from Test to Prod
+    needs: [get-token, deploy-dev-to-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy content from Test to Prod workspace
+        run: |
+          echo "Starting deployment from Test to Prod workspace..."
+
+          ACCESS_TOKEN="${{ needs.get-token.outputs.access_token }}"
+          TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+          PROD_WORKSPACE_ID="${{ secrets.PROD_WORKSPACE_ID }}"
+
+          if [ -z "$TEST_WORKSPACE_ID" ] || [ -z "$PROD_WORKSPACE_ID" ]; then
+            echo "❌ ERROR: Workspace IDs are not set as secrets."
+            exit 1
+          fi
+
+          JSON_PAYLOAD=$(jq -n --arg target "$PROD_WORKSPACE_ID" '{targetWorkspaceId: $target}')
+
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "${{ env.FABRIC_API_URL }}/workspaces/$TEST_WORKSPACE_ID/deployWorkspace" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+
+          echo "Deployment to Prod completed"
+          echo "$DEPLOY_RESPONSE"
