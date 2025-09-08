@@ -25,14 +25,16 @@ jobs:
       - name: Get Azure AD Token
         id: get_token
         run: |
-          TOKEN_RESPONSE=$(curl -s -X POST \
-            "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "client_id=${{ secrets.CLIENT_ID }}" \
-            -d "client_secret=${{ secrets.CLIENT_SECRET }}" \
-            -d "scope=https://api.fabric.microsoft.com/.default" \
-            -d "grant_type=client_credentials")
+         TOKEN_RESPONSE=$(curl -s -X POST \
+  "https://login.microsoftonline.com/***/oauth2/v2.0/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=***" \
+  -d "client_secret=***" \
+  -d "scope=https://api.fabric.microsoft.com/.default" \
+  -d "grant_type=client_credentials")
 
-          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
-          echo "::add-mask::$ACCESS_TOKEN"
-          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
+echo "::add-mask::$ACCESS_TOKEN"
+echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
+
