@@ -53,7 +53,7 @@ jobs:
           fi
 
           # Extract access token
-ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
+          ACCESS_TOKEN="${{ steps.get_token.outputs.access_token }}"
           
           # Validate token extraction
           if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
