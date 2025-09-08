@@ -1,0 +1,86 @@
+
+name: Deploy Fabric Content
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-dev-to-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Get Azure AD token
+        id: get-token
+        run: |
+          echo "🔐 Getting Azure AD token..."
+ACCESS_TOKEN="${{ steps.get-token.outputs.access_token }}"
+
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "❌ ERROR: Failed to obtain access token."
+            exit 1
+          fi
+
+          echo "✅ Token obtained"
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Deploy content from Dev to Test workspace
+        run: |
+          set -e
+          set -o pipefail
+
+          echo "🚀 Starting deployment from Dev to Test workspace..."
+
+          ACCESS_TOKEN="${{ steps.get-token.outputs.access_token }}"
+          DEV_WORKSPACE_ID="${{ secrets.DEV_WORKSPACE_ID }}"
+          TEST_WORKSPACE_ID="${{ secrets.TEST_WORKSPACE_ID }}"
+
+          echo "🔍 Validating inputs..."
+
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "❌ ERROR: ACCESS_TOKEN is empty"
+            exit 1
+          fi
+
+          if [ -z "$DEV_WORKSPACE_ID" ]; then
+            echo "❌ ERROR: DEV_WORKSPACE_ID is empty"
+            exit 1
+          fi
+
+          if [ -z "$TEST_WORKSPACE_ID" ]; then
+            echo "❌ ERROR: TEST_WORKSPACE_ID is empty"
+            exit 1
+          fi
+
+          echo "✅ Inputs validated:"
+          echo "   Token length: ${#ACCESS_TOKEN}"
+          echo "   Dev workspace: $DEV_WORKSPACE_ID"
+          echo "   Test workspace: $TEST_WORKSPACE_ID"
+
+          JSON_PAYLOAD=$(jq -n --arg target "$TEST_WORKSPACE_ID" '{targetWorkspaceId: $target}')
+          if [ -z "$JSON_PAYLOAD" ]; then
+            echo "❌ ERROR: Failed to create JSON payload"
+            exit 1
+          fi
+
+          echo "📦 JSON payload: $JSON_PAYLOAD"
+
+          echo "🌐 Making deployment request..."
+          DEPLOY_RESPONSE=$(curl -w "
+%{http_code}" -s -X POST             "https://api.fabric.microsoft.com/v1/workspaces/$DEV_WORKSPACE_ID/deployWorkspace"             -H "Authorization: Bearer $ACCESS_TOKEN"             -H "Content-Type: application/json"             -d "$JSON_PAYLOAD")
+
+          HTTP_CODE=$(echo "$DEPLOY_RESPONSE" | tail -n1)
+          DEPLOY_RESPONSE_BODY=$(echo "$DEPLOY_RESPONSE" | sed '$d')
+
+          echo "📊 Deployment request HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "202" ]; then
+            echo "❌ ERROR: Deployment request failed with HTTP $HTTP_CODE"
+            echo "Response: $DEPLOY_RESPONSE_BODY"
+            exit 1
+          fi
+
+          echo "✅ Deployment initiated successfully"
+          echo "📄 Response: $DEPLOY_RESPONSE_BODY"
