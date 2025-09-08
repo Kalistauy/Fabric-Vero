@@ -42,9 +42,11 @@ jobs:
         run: |
           WORKSPACE_RESPONSE=$(curl -s -X GET \
             "${{ env.FABRIC_API_URL }}/workspaces?\$filter=name eq 'Development'" \
-            -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json")
 
           WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r '.value[0].id')
           echo "::add-mask::$WORKSPACE_ID"
           echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
+        env:
+          ACCESS_TOKEN: ${{ steps.get_token.outputs.access_token }}
