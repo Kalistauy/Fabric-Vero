@@ -1,5 +1,5 @@
 
-name: Microsoft Fabric CI/CD
+name: Microsoft Fabric CI/CD and Deploy
 
 on:
   push:
@@ -13,12 +13,9 @@ env:
   AZURE_LOGIN_URL: "https://login.microsoftonline.com"
 
 jobs:
-  get-token-and-workspace:
-    name: Get Azure AD Token and Workspace ID
+  deploy-dev-to-test:
+    name: Get Token, Workspace ID and Deploy Artifacts
     runs-on: ubuntu-latest
-    outputs:
-      access_token: ${{ steps.get_token.outputs.access_token }}
-      workspace_id: ${{ steps.get_workspace.outputs.workspace_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,32 +27,22 @@ jobs:
 
           ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
           echo "::add-mask::$ACCESS_TOKEN"
-          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_ENV
 
-   
       - name: Get Workspace ID
         id: get_workspace
         run: |
-          WORKSPACE_RESPONSE=$(curl -s -X GET \
-            "${{ env.FABRIC_API_URL }}/workspaces" \
-            -H "Authorization: Bearer ${{ steps.get_token.outputs.access_token }}" \
-            -H "Content-Type: application/json")
+          WORKSPACE_RESPONSE=$(curl -s -X GET             "${{ env.FABRIC_API_URL }}/workspaces"             -H "Authorization: Bearer ${{ env.access_token }}"             -H "Content-Type: application/json")
 
-          WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
-          echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
-          echo "Found workspace: $WORKSPACE_ID"
+          DEV_WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.DEV_WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
+          TEST_WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.TEST_WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
 
+          echo "dev_workspace_id=$DEV_WORKSPACE_ID" >> $GITHUB_ENV
+          echo "test_workspace_id=$TEST_WORKSPACE_ID" >> $GITHUB_ENV
 
-name: Fabric Deploy Dev to Test
+          echo "Found Dev workspace: $DEV_WORKSPACE_ID"
+          echo "Found Test workspace: $TEST_WORKSPACE_ID"
 
-on:
-  workflow_dispatch:
-
-jobs:
-  deploy-dev-to-test:
-    name: Deploy Artifacts from Dev to Test
-    runs-on: ubuntu-latest
-    steps:
       - name: Copy artifacts from Dev to Test
         run: |
           RESPONSE=$(curl -s -X POST             "$FABRIC_API_URL/workspaces/$TEST_WORKSPACE_ID/importAllArtifacts?sourceWorkspaceId=$DEV_WORKSPACE_ID"             -H "Authorization: Bearer $ACCESS_TOKEN"             -H "Content-Type: application/json")
@@ -71,7 +58,6 @@ jobs:
           echo "✅ Artefactos copiados exitosamente de Dev a Test."
         env:
           FABRIC_API_URL: https://api.fabric.microsoft.com/v1
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          DEV_WORKSPACE_ID: ${{ secrets.DEV_WORKSPACE_ID }}
-          TEST_WORKSPACE_ID: ${{ secrets.TEST_WORKSPACE_ID }}
-
+          ACCESS_TOKEN: ${{ env.access_token }}
+          DEV_WORKSPACE_ID: ${{ env.dev_workspace_id }}
+          TEST_WORKSPACE_ID: ${{ env.test_workspace_id }}
