@@ -45,3 +45,33 @@ jobs:
           echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
           echo "Found workspace: $WORKSPACE_ID"
 
+
+name: Fabric Deploy Dev to Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-dev-to-test:
+    name: Deploy Artifacts from Dev to Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy artifacts from Dev to Test
+        run: |
+          RESPONSE=$(curl -s -X POST             "$FABRIC_API_URL/workspaces/$TEST_WORKSPACE_ID/importAllArtifacts?sourceWorkspaceId=$DEV_WORKSPACE_ID"             -H "Authorization: Bearer $ACCESS_TOKEN"             -H "Content-Type: application/json")
+
+          echo "API response: $RESPONSE"
+
+          STATUS=$(echo "$RESPONSE" | jq -r '.status')
+          if [ "$STATUS" != "Succeeded" ]; then
+            echo "❌ Error: Falló la copia de artefactos de Dev a Test."
+            exit 1
+          fi
+
+          echo "✅ Artefactos copiados exitosamente de Dev a Test."
+        env:
+          FABRIC_API_URL: https://api.fabric.microsoft.com/v1
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          DEV_WORKSPACE_ID: ${{ secrets.DEV_WORKSPACE_ID }}
+          TEST_WORKSPACE_ID: ${{ secrets.TEST_WORKSPACE_ID }}
+
