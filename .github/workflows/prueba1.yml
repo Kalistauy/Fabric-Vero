@@ -1,4 +1,3 @@
-
 name: Microsoft Fabric CI/CD and Deploy
 
 on:
@@ -19,14 +18,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate and Copy artifacts from Dev to Test
+      - name: Validate secrets
         run: |
-          if [ -z "${{ secrets.DEV_WORKSPACE_ID }}" ] || [ -z "${{ secrets.TEST_WORKSPACE_ID }}" ]; then
-            echo "❌ Error: Los IDs de los workspaces Dev o Test no están definidos."
+          if [ -z "${{ secrets.ACCESS_TOKEN }}" ]; then
+            echo "❌ Error: El token de acceso (ACCESS_TOKEN) no está definido."
             exit 1
           fi
 
-          RESPONSE=$(curl -s -X GET             "$FABRIC_API_URL/workspaces/${{ secrets.DEV_WORKSPACE_ID }}/getPendingChanges?targetWorkspaceId=${{ secrets.TEST_WORKSPACE_ID }}"             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}"             -H "Content-Type: application/json")
+          if [ -z "${{ secrets.DEV_WORKSPACE_ID }}" ] || [ -z "${{ secrets.TEST_WORKSPACE_ID }}" ] || [ -z "${{ secrets.PROD_WORKSPACE_ID }}" ]; then
+            echo "❌ Error: Uno o más IDs de workspace (DEV, TEST, PROD) no están definidos."
+            exit 1
+          fi
+
+          echo "✅ Validación de token y workspace IDs completada."
+
+      - name: Validate and Copy artifacts from Dev to Test
+        run: |
+          RESPONSE=$(curl -s -X GET \
+            "$FABRIC_API_URL/workspaces/${{ secrets.DEV_WORKSPACE_ID }}/getPendingChanges?targetWorkspaceId=${{ secrets.TEST_WORKSPACE_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json")
 
           CHANGES=$(echo "$RESPONSE" | jq -r '.hasPendingChanges')
           if [ "$CHANGES" != "true" ]; then
@@ -36,7 +47,11 @@ jobs:
 
           echo "✅ Cambios pendientes detectados entre Dev y Test. Ejecutando copia..."
 
-          RESPONSE=$(curl -s -X POST             "$FABRIC_API_URL/workspaces/${{ secrets.TEST_WORKSPACE_ID }}/importAllArtifacts?sourceWorkspaceId=${{ secrets.DEV_WORKSPACE_ID }}"             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}"             -H "Content-Type: application/json"             -d '{}')
+          RESPONSE=$(curl -s -X POST \
+            "$FABRIC_API_URL/workspaces/${{ secrets.TEST_WORKSPACE_ID }}/importAllArtifacts?sourceWorkspaceId=${{ secrets.DEV_WORKSPACE_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
 
           echo "API response: $RESPONSE"
 
@@ -50,12 +65,10 @@ jobs:
 
       - name: Validate and Copy artifacts from Test to Prod
         run: |
-          if [ -z "${{ secrets.TEST_WORKSPACE_ID }}" ] || [ -z "${{ secrets.PROD_WORKSPACE_ID }}" ]; then
-            echo "❌ Error: Los IDs de los workspaces Test o Prod no están definidos."
-            exit 1
-          fi
-
-          RESPONSE=$(curl -s -X GET             "$FABRIC_API_URL/workspaces/${{ secrets.TEST_WORKSPACE_ID }}/getPendingChanges?targetWorkspaceId=${{ secrets.PROD_WORKSPACE_ID }}"             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}"             -H "Content-Type: application/json")
+          RESPONSE=$(curl -s -X GET \
+            "$FABRIC_API_URL/workspaces/${{ secrets.TEST_WORKSPACE_ID }}/getPendingChanges?targetWorkspaceId=${{ secrets.PROD_WORKSPACE_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json")
 
           CHANGES=$(echo "$RESPONSE" | jq -r '.hasPendingChanges')
           if [ "$CHANGES" != "true" ]; then
@@ -65,7 +78,11 @@ jobs:
 
           echo "✅ Cambios pendientes detectados entre Test y Prod. Ejecutando copia..."
 
-          RESPONSE=$(curl -s -X POST             "$FABRIC_API_URL/workspaces/${{ secrets.PROD_WORKSPACE_ID }}/importAllArtifacts?sourceWorkspaceId=${{ secrets.TEST_WORKSPACE_ID }}"             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}"             -H "Content-Type: application/json"             -d '{}')
+          RESPONSE=$(curl -s -X POST \
+            "$FABRIC_API_URL/workspaces/${{ secrets.PROD_WORKSPACE_ID }}/importAllArtifacts?sourceWorkspaceId=${{ secrets.TEST_WORKSPACE_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
 
           echo "API response: $RESPONSE"
 
@@ -74,5 +91,4 @@ jobs:
             echo "❌ Error: Falló la copia de artefactos de Test a Prod."
             exit 1
           fi
-
           echo "✅ Artefactos copiados exitosamente de Test a Prod."
