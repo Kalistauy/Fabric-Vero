@@ -10,42 +10,33 @@ on:
 
 env:
   FABRIC_API_URL: "https://api.fabric.microsoft.com/v1"
-  AZURE_LOGIN_URL: "https://login.microsoftonline.com"
 
 jobs:
-  deploy-dev-to-test:
-    name: Get Token, Workspace ID and Deploy Artifacts
+  deploy-dev-test-prod:
+    name: Deploy Artifacts Dev → Test → Prod
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get Azure AD Token
-        id: get_token
+      - name: Validate and Copy artifacts from Dev to Test
         run: |
-          TOKEN_RESPONSE=$(curl -s -X POST             "${{ env.AZURE_LOGIN_URL }}/${{ secrets.TENANT_ID }}/oauth2/v2.0/token"             -H "Content-Type: application/x-www-form-urlencoded"             -d "client_id=${{ secrets.CLIENT_ID }}"             -d "client_secret=${{ secrets.CLIENT_SECRET }}"             -d "scope=https://api.fabric.microsoft.com/.default"             -d "grant_type=client_credentials")
+          if [ -z "${{ secrets.DEV_WORKSPACE_ID }}" ] || [ -z "${{ secrets.TEST_WORKSPACE_ID }}" ]; then
+            echo "❌ Error: Los IDs de los workspaces Dev o Test no están definidos."
+            exit 1
+          fi
 
-          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
-          echo "::add-mask::$ACCESS_TOKEN"
-          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_ENV
+          RESPONSE=$(curl -s -X GET             "$FABRIC_API_URL/workspaces/${{ secrets.DEV_WORKSPACE_ID }}/getPendingChanges?targetWorkspaceId=${{ secrets.TEST_WORKSPACE_ID }}"             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}"             -H "Content-Type: application/json")
 
-      - name: Get Workspace ID
-        id: get_workspace
-        run: |
-          WORKSPACE_RESPONSE=$(curl -s -X GET             "${{ env.FABRIC_API_URL }}/workspaces"             -H "Authorization: Bearer ${{ env.access_token }}"             -H "Content-Type: application/json")
+          CHANGES=$(echo "$RESPONSE" | jq -r '.hasPendingChanges')
+          if [ "$CHANGES" != "true" ]; then
+            echo "ℹ️ No hay cambios pendientes entre Dev y Test."
+            exit 0
+          fi
 
-          DEV_WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.DEV_WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
-          TEST_WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.TEST_WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
+          echo "✅ Cambios pendientes detectados entre Dev y Test. Ejecutando copia..."
 
-          echo "dev_workspace_id=$DEV_WORKSPACE_ID" >> $GITHUB_ENV
-          echo "test_workspace_id=$TEST_WORKSPACE_ID" >> $GITHUB_ENV
-
-          echo "Found Dev workspace: $DEV_WORKSPACE_ID"
-          echo "Found Test workspace: $TEST_WORKSPACE_ID"
-
-      - name: Copy artifacts from Dev to Test
-        run: |
-          RESPONSE=$(curl -s -X POST             "$FABRIC_API_URL/workspaces/$TEST_WORKSPACE_ID/importAllArtifacts?sourceWorkspaceId=$DEV_WORKSPACE_ID"             -H "Authorization: Bearer $ACCESS_TOKEN"             -H "Content-Type: application/json")
+          RESPONSE=$(curl -s -X POST             "$FABRIC_API_URL/workspaces/${{ secrets.TEST_WORKSPACE_ID }}/importAllArtifacts?sourceWorkspaceId=${{ secrets.DEV_WORKSPACE_ID }}"             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}"             -H "Content-Type: application/json"             -d '{}')
 
           echo "API response: $RESPONSE"
 
@@ -56,8 +47,32 @@ jobs:
           fi
 
           echo "✅ Artefactos copiados exitosamente de Dev a Test."
-        env:
-          FABRIC_API_URL: https://api.fabric.microsoft.com/v1
-          ACCESS_TOKEN: ${{ env.access_token }}
-          DEV_WORKSPACE_ID: ${{ env.dev_workspace_id }}
-          TEST_WORKSPACE_ID: ${{ env.test_workspace_id }}
+
+      - name: Validate and Copy artifacts from Test to Prod
+        run: |
+          if [ -z "${{ secrets.TEST_WORKSPACE_ID }}" ] || [ -z "${{ secrets.PROD_WORKSPACE_ID }}" ]; then
+            echo "❌ Error: Los IDs de los workspaces Test o Prod no están definidos."
+            exit 1
+          fi
+
+          RESPONSE=$(curl -s -X GET             "$FABRIC_API_URL/workspaces/${{ secrets.TEST_WORKSPACE_ID }}/getPendingChanges?targetWorkspaceId=${{ secrets.PROD_WORKSPACE_ID }}"             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}"             -H "Content-Type: application/json")
+
+          CHANGES=$(echo "$RESPONSE" | jq -r '.hasPendingChanges')
+          if [ "$CHANGES" != "true" ]; then
+            echo "ℹ️ No hay cambios pendientes entre Test y Prod."
+            exit 0
+          fi
+
+          echo "✅ Cambios pendientes detectados entre Test y Prod. Ejecutando copia..."
+
+          RESPONSE=$(curl -s -X POST             "$FABRIC_API_URL/workspaces/${{ secrets.PROD_WORKSPACE_ID }}/importAllArtifacts?sourceWorkspaceId=${{ secrets.TEST_WORKSPACE_ID }}"             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}"             -H "Content-Type: application/json"             -d '{}')
+
+          echo "API response: $RESPONSE"
+
+          STATUS=$(echo "$RESPONSE" | jq -r '.status')
+          if [ "$STATUS" != "Succeeded" ]; then
+            echo "❌ Error: Falló la copia de artefactos de Test a Prod."
+            exit 1
+          fi
+
+          echo "✅ Artefactos copiados exitosamente de Test a Prod."
