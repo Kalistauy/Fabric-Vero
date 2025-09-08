@@ -33,7 +33,7 @@ jobs:
           echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
 
    
-         - name: Get Workspace ID
+      - name: Get Workspace ID
         id: get_workspace
         run: |
           WORKSPACE_RESPONSE=$(curl -s -X GET \
@@ -44,3 +44,4 @@ jobs:
           WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r --arg name "${{ vars.WORKSPACE_NAME }}" '.value[] | select(.displayName == $name) | .id')
           echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
           echo "Found workspace: $WORKSPACE_ID"
+
