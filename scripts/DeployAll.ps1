@@ -27,7 +27,7 @@ $principalType = "ServicePrincipal" # Choose either "UserPrincipal" or "ServiceP
 # Relevant for ServicePrincipal
 $clientId = "${{ secrets.CLIENT_ID }}"                   #The application (client) ID of the service principal
 $tenantId = "${{ secrets.TENANT_ID }}"                   #The directory (tenant) ID of the service principal
-$servicePrincipalSecret = "${{ secrets.SECRET_VALUE }}"  #The secret value of the service principal
+$servicePrincipalSecret = "${{ secrets.CLIENT_SECRET }}"  #The secret value of the service principal
 
 # End Parameters =======================================
 
