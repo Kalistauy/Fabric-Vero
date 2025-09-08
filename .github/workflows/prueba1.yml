@@ -37,7 +37,7 @@ jobs:
           echo "::add-mask::$ACCESS_TOKEN"
           echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
 
-    - name: Get Workspace ID for 'Development'
+      - name: Get Workspace ID for 'Development'
         id: get_workspace
         run: |
           WORKSPACE_RESPONSE=$(curl -s -X GET \
