@@ -37,13 +37,15 @@ jobs:
           echo "::add-mask::$ACCESS_TOKEN"
           echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Get Workspace ID for 'Development'
+    - name: Get Workspace ID for 'Development'
         id: get_workspace
         run: |
           WORKSPACE_RESPONSE=$(curl -s -X GET \
             "${{ env.FABRIC_API_URL }}/workspaces?\$filter=name eq 'Development'" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json")
+
+          echo "Workspace response: $WORKSPACE_RESPONSE"  # Debug temporal
 
           WORKSPACE_ID=$(echo "$WORKSPACE_RESPONSE" | jq -r '.value[0].id')
           echo "::add-mask::$WORKSPACE_ID"
