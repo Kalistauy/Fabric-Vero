@@ -25,9 +25,9 @@ $deploymentNote = "Despliegue automático desde Dev a Test"                     
 $principalType = "ServicePrincipal" # Choose either "UserPrincipal" or "ServicePrincipal"
 
 # Relevant for ServicePrincipal
-$clientId = "${{ secrets.CLIENT_ID }}"                   #The application (client) ID of the service principal
-$tenantId = "${{ secrets.TENANT_ID }}"                   #The directory (tenant) ID of the service principal
-$servicePrincipalSecret = "${{ secrets.CLIENT_SECRET }}"  #The secret value of the service principal
+$clientId = "$env:CLIENT_ID"                   #The application (client) ID of the service principal
+$tenantId = "$env:TENANT_ID"                   #The directory (tenant) ID of the service principal
+$servicePrincipalSecret = "$env:CLIENT_SECRET"  #The secret value of the service principal
 
 # End Parameters =======================================
 
