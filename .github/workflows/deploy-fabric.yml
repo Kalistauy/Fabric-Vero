@@ -1,0 +1,45 @@
+
+name: Fabric Deployment Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-dev-to-test:
+    name: Deploy Dev to Test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install PowerShell Az module
+        run: Install-Module -Name Az -Force -Scope CurrentUser
+        shell: pwsh
+
+      - name: Run Dev to Test Deployment
+        run: ./scripts/DeployAll.ps1
+        shell: pwsh
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+
+  deploy-test-to-prod:
+    name: Deploy Test to Prod
+    runs-on: windows-latest
+    needs: deploy-dev-to-test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install PowerShell Az module
+        run: Install-Module -Name Az -Force -Scope CurrentUser
+        shell: pwsh
+
+      - name: Run Test to Prod Deployment
+        run: ./scripts/DeployTestToProd.ps1
+        shell: pwsh
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
