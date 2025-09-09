@@ -17,7 +17,7 @@ jobs:
         shell: pwsh
 
       - name: Run Dev to Test Deployment
-        run: ./scripts/DeployAll.ps1
+        run: ./scripts/DeployDevToTest.ps1
         shell: pwsh
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
