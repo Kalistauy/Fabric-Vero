@@ -24,9 +24,7 @@ jobs:
           }
 
       - name: Ejecutar despliegue Dev → Test
-        run: |
-          pwsh ./scripts/DeployDevToTest_final_corregido.ps1
+        run: pwsh ./scripts/DeployDevToTest_final_corregido.ps1
 
       - name: Ejecutar despliegue Test → Prod
-        run: |
-          pwsh ./scripts/DeployTestToProd_corregido.ps1
+        run: pwsh ./scripts/DeployTestToProd_corregido.ps1
