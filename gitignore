@@ -1,0 +1,12 @@
+
+# Ignorar archivo de credenciales
+.env
+
+# Otros archivos comunes a ignorar
+*.log
+*.tmp
+__pycache__/
+.DS_Store
+node_modules/
+.env.local
+.env.*.local
