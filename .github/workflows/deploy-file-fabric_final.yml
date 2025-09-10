@@ -1,45 +1,16 @@
-name: Fabric Deployment Pipeline
 
+name: Deploy to Microsoft Fabric
 on:
-  workflow_dispatch:
-
+  push:
+    branches:
+      - main
 jobs:
-  deploy-dev-to-test:
-    name: Deploy Dev to Test
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Install PowerShell Az module
-        run: Install-Module -Name Az -Force -Scope CurrentUser
-        shell: pwsh
-
-      - name: List contents of scripts folder
-        run: Get-ChildItem -Recurse ./scripts
-        shell: pwsh
-
-      - name: Run Dev to Test Deployment
-        run: ./scripts/DeployDevToTest_final_corregido.ps1
-        shell: pwsh
-        
-  deploy-test-to-prod:
-    name: Deploy Test to Prod
-    runs-on: ubuntu-latest
-    needs: deploy-dev-to-test
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Install PowerShell Az module
-        run: Install-Module -Name Az -Force -Scope CurrentUser
-        shell: pwsh
-
-      - name: List contents of scripts folder
-        run: Get-ChildItem -Recurse ./scripts
-        shell: pwsh
-
-      - name: Run Test to Prod Deployment
-        run: ./scripts/DeployTestToProd_final.ps1
-        shell: pwsh
-        
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Cargar variables de entorno
+        run: export $(grep -v '^#' .env | xargs)
+      - name: Ejecutar script de despliegue
+        run: pwsh scripts/DeployDevToTest_final_corregido.ps1
