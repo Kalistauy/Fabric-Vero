@@ -24,9 +24,9 @@ param (
 # =====================================================
 
 $deploymentPipelineName = "github-integration-pipelines"      # The name of the deployment pipeline
-$sourceStageName = "Production"                    # The name of the source stage
+$sourceStageName = "Test"                    # The name of the source stage
 $targetStageName = "Production"                    # The name of the target stage
-$deploymentNote = "Automatic deployment from Dev to Production"                       # The deployment note (Optional)
+$deploymentNote = "Automatic deployment from Test to Production"                       # The deployment note (Optional)
 
 $principalType = "ServicePrincipal" # Choose either "UserPrincipal" or "ServicePrincipal"
 
