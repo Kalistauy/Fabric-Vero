@@ -1,4 +1,3 @@
-
 name: Deploy to Microsoft Fabric
 
 on:
@@ -10,22 +9,14 @@ on:
 jobs:
   deploy:
     runs-on: windows-latest
-
     steps:
       - name: Checkout código
         uses: actions/checkout@v3
 
-- name: Cargar variables desde .env
-  shell: bash
-  run: |
-    cat .env | grep -v '^#' >> $GITHUB_ENV
-        shell: pwsh
+      - name: Cargar variables desde .env
+        shell: bash
         run: |
-          Get-Content .env | ForEach-Object {
-            if ($_ -match '^(.*?)=(.*)$') {
-              [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')
-            }
-          }
+          cat .env | grep -v '^#' >> $GITHUB_ENV
 
       - name: Ejecutar despliegue Dev → Test
         shell: pwsh
