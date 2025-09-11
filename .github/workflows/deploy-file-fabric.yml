@@ -1,47 +1,41 @@
 name: Fabric Deployment Pipeline
-
-on:
-  workflow_dispatch:
-
+'on':
+  workflow_dispatch: {}
 jobs:
   deploy-dev-to-test:
     runs-on: windows-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Verificar scripts disponibles
-        shell: pwsh
-        run: |
-          Write-Host "Contenido del directorio actual:"
-          Get-ChildItem -Recurse
-
-      - name: Ejecutar despliegue Dev → Test
-        shell: pwsh
-        run: |
-          ./scripts/DeployDevToTest_final_parametrizado.ps1 `
-            -ClientId "${{ secrets.CLIENT_ID }}" `
-            -TenantId "${{ secrets.TENANT_ID }}" `
-            -ClientSecret "${{ secrets.CLIENT_SECRET }}"
-
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Verificar scripts disponibles
+      shell: pwsh
+      run: Get-ChildItem -Recurse
+    - name: "Ejecutar despliegue Dev \u2192 Test"
+      shell: pwsh
+      run: ./DeployDevToTest_final_parametrizado.ps1 -ClientId "${{ secrets.CLIENT_ID
+        }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET
+        }}"
   deploy-test-to-prod:
     runs-on: windows-latest
     needs:
-      - deploy-dev-to-test
+    - deploy-dev-to-test
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Verificar scripts disponibles
-        shell: pwsh
-        run: |
-          Write-Host "Contenido del directorio actual:"
-          Get-ChildItem -Recurse
-
-      - name: Ejecutar despliegue Test → Prod
-        shell: pwsh
-        run: |
-          ./scripts/DeployTestToProd_parametrizado.ps1 `
-            -ClientId "${{ secrets.CLIENT_ID }}" `
-            -TenantId "${{ secrets.TENANT_ID }}" `
-            -ClientSecret "${{ secrets.CLIENT_SECRET }}"
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Verificar scripts disponibles
+      shell: pwsh
+      run: Get-ChildItem -Recurse
+    - name: "Ejecutar despliegue Test \u2192 Prod"
+      shell: pwsh
+      run: ./DeployTestToProd_parametrizado.ps1 -ClientId "${{ secrets.CLIENT_ID }}"
+        -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET
+        }}"
+    - name: "Confirmar \xE9xito del despliegue"
+      shell: pwsh
+      run: "Write-Host '\u2705 Despliegue Test \u2192 Prod completado exitosamente.'\\ -ForegroundColor Green"
+    - name: Enviar alerta a Teams
+      uses: Ilshidur/action-discord@master
+      with:
+        webhook: ${{ secrets.TEAMS_WEBHOOK }}
+        message: "\u2705 Despliegue Test \u2192 Prod completado exitosamente en GitHub\
+          \ Actions."
