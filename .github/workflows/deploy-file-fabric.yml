@@ -7,9 +7,17 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    - name: Run Dev to Test Deployment
+    - name: Validar variables de entorno
       shell: pwsh
-      run: ./DeployDevToTest_final_validado_stages.ps1
+      run: "\n                        if (-not $env:CLIENT_ID) { Write-Host 'ERROR:\
+        \ CLIENT_ID no est\xE1 definido.' -ForegroundColor Red; exit 1 }\n       \
+        \                 if (-not $env:TENANT_ID) { Write-Host 'ERROR: TENANT_ID\
+        \ no est\xE1 definido.' -ForegroundColor Red; exit 1 }\n                 \
+        \       if (-not $env:CLIENT_SECRET) { Write-Host 'ERROR: CLIENT_SECRET no\
+        \ est\xE1 definido.' -ForegroundColor Red; exit 1 }\n                    "
+    - name: "Ejecutar despliegue Dev \u2192 Test"
+      shell: pwsh
+      run: ./DeployDevToTest_final_corregido.ps1
       env:
         CLIENT_ID: ${{ secrets.CLIENT_ID }}
         TENANT_ID: ${{ secrets.TENANT_ID }}
@@ -21,9 +29,17 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    - name: Run Test to Prod Deployment
+    - name: Validar variables de entorno
       shell: pwsh
-      run: ./DeployTestToProd_corregido_validado_stages.ps1
+      run: "\n                        if (-not $env:CLIENT_ID) { Write-Host 'ERROR:\
+        \ CLIENT_ID no est\xE1 definido.' -ForegroundColor Red; exit 1 }\n       \
+        \                 if (-not $env:TENANT_ID) { Write-Host 'ERROR: TENANT_ID\
+        \ no est\xE1 definido.' -ForegroundColor Red; exit 1 }\n                 \
+        \       if (-not $env:CLIENT_SECRET) { Write-Host 'ERROR: CLIENT_SECRET no\
+        \ est\xE1 definido.' -ForegroundColor Red; exit 1 }\n                    "
+    - name: "Ejecutar despliegue Test \u2192 Prod"
+      shell: pwsh
+      run: ./DeployTestToProd_corregido.ps1
       env:
         CLIENT_ID: ${{ secrets.CLIENT_ID }}
         TENANT_ID: ${{ secrets.TENANT_ID }}
