@@ -27,7 +27,7 @@ jobs:
       run: Get-ChildItem -Recurse
     - name: "Ejecutar despliegue Test \u2192 Prod"
       shell: pwsh
-      run: ./TestToProd.ps1 -ClientId "${{ secrets.CLIENT_ID }}"
+      run: ./scripts/TestToProd.ps1 -ClientId "${{ secrets.CLIENT_ID }}"
         -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET
         }}"
     - name: "Confirmar \xE9xito del despliegue"
@@ -37,5 +37,4 @@ jobs:
       uses: Ilshidur/action-discord@master
       with:
         webhook: ${{ secrets.TEAMS_WEBHOOK }}
-        message: "\u2705 Despliegue Test \u2192 Prod completado exitosamente en GitHub\
-          \ Actions."
+        message: "\u2705 Despliegue Test \u2192 Prod completado exitosamente en GitHub\\ Actions."
