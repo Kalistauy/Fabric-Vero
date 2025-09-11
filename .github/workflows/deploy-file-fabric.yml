@@ -16,7 +16,7 @@ jobs:
 
       - name: "Run deployment Dev → Test"
         shell: pwsh
-        run: ./DevToTest.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
+        run: ./scripts/DevToTest.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
 
       - name: Send alert to Teams
         shell: pwsh
@@ -38,7 +38,7 @@ jobs:
 
       - name: "Run deployment Test → Prod"
         shell: pwsh
-        run: ./TestToProd.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
+        run: ./scripts/TestToProd.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
 
       - name: "Confirm deployment success"
         shell: pwsh
