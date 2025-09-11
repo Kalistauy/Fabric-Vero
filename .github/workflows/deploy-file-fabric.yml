@@ -7,15 +7,13 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    - name: Validar variables de entorno
+    - name: Set secrets as environment variables
       shell: pwsh
-      run: "\n                        if (-not $env:CLIENT_ID) { Write-Host 'ERROR:\
-        \ CLIENT_ID no est\xE1 definido.' -ForegroundColor Red; exit 1 }\n       \
-        \                 if (-not $env:TENANT_ID) { Write-Host 'ERROR: TENANT_ID\
-        \ no est\xE1 definido.' -ForegroundColor Red; exit 1 }\n                 \
-        \       if (-not $env:CLIENT_SECRET) { Write-Host 'ERROR: CLIENT_SECRET no\
-        \ est\xE1 definido.' -ForegroundColor Red; exit 1 }\n                    "
-    - name: "Ejecutar despliegue Dev \u2192 Test"
+      run: "\n                        $env:CLIENT_ID = '${{ secrets.CLIENT_ID }}'\n\
+        \                        $env:TENANT_ID = '${{ secrets.TENANT_ID }}'\n   \
+        \                     $env:CLIENT_SECRET = '${{ secrets.CLIENT_SECRET }}'\n\
+        \                    "
+    - name: Run Dev to Test Deployment
       shell: pwsh
       run: ./DeployDevToTest_final_corregido.ps1
   deploy-test-to-prod:
@@ -25,14 +23,12 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    - name: Validar variables de entorno
+    - name: Set secrets as environment variables
       shell: pwsh
-      run: "\n                        if (-not $env:CLIENT_ID) { Write-Host 'ERROR:\
-        \ CLIENT_ID no est\xE1 definido.' -ForegroundColor Red; exit 1 }\n       \
-        \                 if (-not $env:TENANT_ID) { Write-Host 'ERROR: TENANT_ID\
-        \ no est\xE1 definido.' -ForegroundColor Red; exit 1 }\n                 \
-        \       if (-not $env:CLIENT_SECRET) { Write-Host 'ERROR: CLIENT_SECRET no\
-        \ est\xE1 definido.' -ForegroundColor Red; exit 1 }\n                    "
-    - name: "Ejecutar despliegue Test \u2192 Prod"
+      run: "\n                        $env:CLIENT_ID = '${{ secrets.CLIENT_ID }}'\n\
+        \                        $env:TENANT_ID = '${{ secrets.TENANT_ID }}'\n   \
+        \                     $env:CLIENT_SECRET = '${{ secrets.CLIENT_SECRET }}'\n\
+        \                    "
+    - name: Run Test to Prod Deployment
       shell: pwsh
       run: ./DeployTestToProd_corregido.ps1
