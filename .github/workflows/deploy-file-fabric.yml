@@ -19,7 +19,7 @@ jobs:
       - name: Ejecutar despliegue Dev → Test
         shell: pwsh
         run: |
-          ./DeployDevToTest_final_parametrizado.ps1 `
+          ./scripts/DeployDevToTest_final_parametrizado.ps1 `
             -ClientId "${{ secrets.CLIENT_ID }}" `
             -TenantId "${{ secrets.TENANT_ID }}" `
             -ClientSecret "${{ secrets.CLIENT_SECRET }}"
