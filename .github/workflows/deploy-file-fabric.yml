@@ -18,6 +18,7 @@ jobs:
       - name: "Run deployment Dev → Test"
         shell: pwsh
         run: ./scripts/DevToTest.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
+
       - name: Confirm deployment success
         shell: pwsh
         run: "Write-Host '✅ Deployment Dev → Test completed successfully.' -ForegroundColor Green"
