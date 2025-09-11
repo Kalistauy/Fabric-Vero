@@ -41,7 +41,7 @@ jobs:
       - name: Ejecutar despliegue Test → Prod
         shell: pwsh
         run: |
-          ./DeployTestToProd_parametrizado.ps1 `
+          .scripts/DeployTestToProd_parametrizado.ps1 `
             -ClientId "${{ secrets.CLIENT_ID }}" `
             -TenantId "${{ secrets.TENANT_ID }}" `
             -ClientSecret "${{ secrets.CLIENT_SECRET }}"
