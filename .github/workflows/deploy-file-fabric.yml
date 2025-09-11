@@ -1,40 +1,51 @@
 name: Fabric Deployment Pipeline
-'on':
+
+on:
   workflow_dispatch: {}
+
 jobs:
   deploy-dev-to-test:
     runs-on: windows-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Check available scripts
-      shell: pwsh
-      run: Get-ChildItem -Recurse
-    - name: "Ejecutar despliegue Dev \u2192 Test"
-      shell: pwsh
-      run: ./scripts/DevToTest.ps1 -ClientId "${{ secrets.CLIENT_ID
-        }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET
-        }}"
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check available scripts
+        shell: pwsh
+        run: Get-ChildItem -Recurse
+
+      - name: "Run deployment Dev → Test"
+        shell: pwsh
+        run: ./DevToTest.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
+
+      - name: Send alert to Teams
+        shell: pwsh
+        run: |
+          $payload = @{ text = '✅ Deployment Dev → Test successfully completed in GitHub Actions.' } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Uri "${{ secrets.TEAMS_WEBHOOK }}" -Method POST -Body $payload -ContentType 'application/json'
+
   deploy-test-to-prod:
     runs-on: windows-latest
     needs:
-    - deploy-dev-to-test
+      - deploy-dev-to-test
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Check available scripts
-      shell: pwsh
-      run: Get-ChildItem -Recurse
-    - name: "Ejecutar despliegue Test \u2192 Prod"
-      shell: pwsh
-      run: ./scripts/TestToProd.ps1 -ClientId "${{ secrets.CLIENT_ID }}"
-        -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET
-        }}"
-    - name: "Confirmar \xE9xito del despliegue"
-      shell: pwsh
-      run: "Write-Host '\u2705 Despliegue Test \u2192 Prod completado exitosamente.'\\ -ForegroundColor Green"
-    - name: Send alert to Teams
-      uses: Ilshidur/action-discord@master
-      with:
-        webhook: ${{ secrets.TEAMS_WEBHOOK }}
-        message: "\u2705 Despliegue Test \u2192 Prod completado exitosamente en GitHub\\ Actions."
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check available scripts
+        shell: pwsh
+        run: Get-ChildItem -Recurse
+
+      - name: "Run deployment Test → Prod"
+        shell: pwsh
+        run: ./TestToProd.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
+
+      - name: "Confirm deployment success"
+        shell: pwsh
+        run: "Write-Host '✅ Deployment Test → Prod completed successfully.' -ForegroundColor Green"
+
+      - name: Send alert to Teams
+        shell: pwsh
+        run: |
+          $payload = @{ text = '✅ Deployment Test → Prod successfully completed in GitHub Actions.' } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Uri "${{ secrets.TEAMS_WEBHOOK }}" -Method POST -Body $payload -ContentType 'application/json'
