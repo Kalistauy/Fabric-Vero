@@ -1,34 +1,35 @@
 name: Fabric Deployment Pipeline
-'on':
-  workflow_dispatch: {}
+
+on:
+  workflow_dispatch:
+
 jobs:
   deploy-dev-to-test:
     runs-on: windows-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Set secrets as environment variables
-      shell: pwsh
-      run: "\n                        $env:CLIENT_ID = '${{ secrets.CLIENT_ID }}'\n\
-        \                        $env:TENANT_ID = '${{ secrets.TENANT_ID }}'\n   \
-        \                     $env:CLIENT_SECRET = '${{ secrets.CLIENT_SECRET }}'\n\
-        \                    "
-    - name: Run Dev to Test Deployment
-      shell: pwsh
-      run: ./DeployDevToTest_final_corregido.ps1
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Dev to Test Deployment
+        shell: pwsh
+        run: |
+          ./DeployDevToTest_final_parametrizado.ps1 `
+            -ClientId "${{ secrets.CLIENT_ID }}" `
+            -TenantId "${{ secrets.TENANT_ID }}" `
+            -ClientSecret "${{ secrets.CLIENT_SECRET }}"
+
   deploy-test-to-prod:
     runs-on: windows-latest
     needs:
-    - deploy-dev-to-test
+      - deploy-dev-to-test
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Set secrets as environment variables
-      shell: pwsh
-      run: "\n                        $env:CLIENT_ID = '${{ secrets.CLIENT_ID }}'\n\
-        \                        $env:TENANT_ID = '${{ secrets.TENANT_ID }}'\n   \
-        \                     $env:CLIENT_SECRET = '${{ secrets.CLIENT_SECRET }}'\n\
-        \                    "
-    - name: Run Test to Prod Deployment
-      shell: pwsh
-      run: ./DeployTestToProd_corregido.ps1
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Test to Prod Deployment
+        shell: pwsh
+        run: |
+          ./DeployTestToProd_parametrizado.ps1 `
+            -ClientId "${{ secrets.CLIENT_ID }}" `
+            -TenantId "${{ secrets.TENANT_ID }}" `
+            -ClientSecret "${{ secrets.CLIENT_SECRET }}"
