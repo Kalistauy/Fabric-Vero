@@ -18,10 +18,6 @@ jobs:
     - name: "Ejecutar despliegue Dev \u2192 Test"
       shell: pwsh
       run: ./DeployDevToTest_final_corregido.ps1
-      env:
-        CLIENT_ID: ${{ secrets.CLIENT_ID }}
-        TENANT_ID: ${{ secrets.TENANT_ID }}
-        CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
   deploy-test-to-prod:
     runs-on: windows-latest
     needs:
@@ -40,7 +36,3 @@ jobs:
     - name: "Ejecutar despliegue Test \u2192 Prod"
       shell: pwsh
       run: ./DeployTestToProd_corregido.ps1
-      env:
-        CLIENT_ID: ${{ secrets.CLIENT_ID }}
-        TENANT_ID: ${{ secrets.TENANT_ID }}
-        CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
