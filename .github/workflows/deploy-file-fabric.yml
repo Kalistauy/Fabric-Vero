@@ -1,3 +1,4 @@
+
 name: Fabric Deployment Pipeline
 
 on:
@@ -18,12 +19,7 @@ jobs:
         shell: pwsh
         run: ./scripts/DevToTest.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
 
-      - name: Send alert to Teams
-        shell: pwsh
-        run: |
-          $payload = @{ text = '✅ Deployment Dev → Test successfully completed in GitHub Actions.' } | ConvertTo-Json -Compress
-          Invoke-RestMethod -Uri "${{ secrets.TEAMS_WEBHOOK }}" -Method POST -Body $payload -ContentType 'application/json'
-
+   
   deploy-test-to-prod:
     runs-on: windows-latest
     needs:
@@ -40,12 +36,12 @@ jobs:
         shell: pwsh
         run: ./scripts/TestToProd.ps1 -ClientId "${{ secrets.CLIENT_ID }}" -TenantId "${{ secrets.TENANT_ID }}" -ClientSecret "${{ secrets.CLIENT_SECRET }}"
 
-      - name: "Confirm deployment success"
+      - name: Confirm deployment success
         shell: pwsh
         run: "Write-Host '✅ Deployment Test → Prod completed successfully.' -ForegroundColor Green"
 
-      - name: Send alert to Teams
+      - name: Send alert to Power Automate
         shell: pwsh
         run: |
-          $payload = @{ text = '✅ Deployment Test → Prod successfully completed in GitHub Actions.' } | ConvertTo-Json -Compress
-          Invoke-RestMethod -Uri "${{ secrets.TEAMS_WEBHOOK }}" -Method POST -Body $payload -ContentType 'application/json'
+          $payload = @{ "text" = '✅ Deployment Test → Prod successfully completed in GitHub Actions.' } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Uri "https://default243bd71dcef7442db37f3ff10a3e28.32.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/911c5cabf99146e286166dfcfc8f23b7/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=SD7_YUg3dmfS0IcNHfZyMiukFxoiCpOmnWTVfMFlh-Q" -Method POST -Body $payload -ContentType 'application/json'
