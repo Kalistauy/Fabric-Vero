@@ -1,22 +1,30 @@
-name: Deploy to Microsoft Fabric
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
+name: Fabric Deployment Pipeline
+'on':
+  workflow_dispatch: {}
 jobs:
-  deploy:
+  deploy-dev-to-test:
     runs-on: windows-latest
     steps:
-      - name: Checkout código
-        uses: actions/checkout@v3
-
-      - name: Ejecutar despliegue Dev → Test
-        shell: pwsh
-        run: ./scripts/DeployDevToTest_final_corregido.ps1
-
-      - name: Ejecutar despliegue Test → Prod
-        shell: pwsh
-        run: ./scripts/DeployTestToProd_corregido.ps1
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Run Dev to Test Deployment
+      shell: pwsh
+      run: ./DeployDevToTest_final_validado_stages.ps1
+      env:
+        CLIENT_ID: ${{ secrets.CLIENT_ID }}
+        TENANT_ID: ${{ secrets.TENANT_ID }}
+        CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+  deploy-test-to-prod:
+    runs-on: windows-latest
+    needs:
+    - deploy-dev-to-test
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Run Test to Prod Deployment
+      shell: pwsh
+      run: ./DeployTestToProd_corregido_validado_stages.ps1
+      env:
+        CLIENT_ID: ${{ secrets.CLIENT_ID }}
+        TENANT_ID: ${{ secrets.TENANT_ID }}
+        CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
