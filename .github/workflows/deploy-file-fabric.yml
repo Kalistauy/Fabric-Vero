@@ -10,7 +10,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Run Dev to Test Deployment
+      - name: Verificar scripts disponibles
+        shell: pwsh
+        run: |
+          Write-Host "Contenido del directorio actual:"
+          Get-ChildItem -Recurse
+
+      - name: Ejecutar despliegue Dev → Test
         shell: pwsh
         run: |
           ./DeployDevToTest_final_parametrizado.ps1 `
@@ -26,7 +32,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Run Test to Prod Deployment
+      - name: Verificar scripts disponibles
+        shell: pwsh
+        run: |
+          Write-Host "Contenido del directorio actual:"
+          Get-ChildItem -Recurse
+
+      - name: Ejecutar despliegue Test → Prod
         shell: pwsh
         run: |
           ./DeployTestToProd_parametrizado.ps1 `
