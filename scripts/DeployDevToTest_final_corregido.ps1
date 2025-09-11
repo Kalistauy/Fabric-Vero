@@ -1,3 +1,9 @@
+param (
+    [string]$ClientId,
+    [string]$TenantId,
+    [string]$ClientSecret
+)
+
 # This sample script calls the Fabric API to programmatically deploy all supported items from the specified source stage to the specified target stage.
 
 # For documentation, please see:
@@ -25,9 +31,9 @@ $deploymentNote = "Despliegue automático desde Dev a Test"                     
 $principalType = "ServicePrincipal" # Choose either "UserPrincipal" or "ServicePrincipal"
 
 # Relevant for ServicePrincipal
-$clientId = "$env:CLIENT_ID"                   #The application (client) ID of the service principal
-$tenantId = "$env:TENANT_ID"                   #The directory (tenant) ID of the service principal
-$servicePrincipalSecret = "$env:CLIENT_SECRET"  #The secret value of the service principal
+$clientId = $ClientId                   #The application (client) ID of the service principal
+$tenantId = $TenantId                   #The directory (tenant) ID of the service principal
+$servicePrincipalSecret = $ClientSecret  #The secret value of the service principal
 
 # End Parameters =======================================
 
